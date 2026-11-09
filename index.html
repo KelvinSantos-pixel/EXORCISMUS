@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Exorcismus</title>
 <link href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
 <style>
@@ -51,6 +51,9 @@ p{margin:0 0 8px;line-height:1.45;font-size:14px}
 .gear{position:absolute;right:6px;top:6px;z-index:5;background:rgba(0,0,0,.55);border:1px solid #4a4f70;color:#b8bdd8;border-radius:5px;padding:3px 8px;font-size:15px;cursor:pointer}
 @keyframes sh2{0%,100%{transform:translate(0,0)}20%{transform:translate(-9px,5px) rotate(-.5deg)}40%{transform:translate(8px,-6px) rotate(.5deg)}60%{transform:translate(-7px,-5px)}80%{transform:translate(7px,6px) rotate(.3deg)}}
 .shake2{animation:sh2 .13s infinite}
+@media (prefers-reduced-motion:reduce){.gl,.shake,.shake2{animation:none!important}}
+body.calm .gl,body.calm .shake,body.calm .shake2{animation:none!important}
+@media (max-height:700px){.b{padding:8px 10px;margin:4px 0}.log{min-height:22px}#ui{padding:8px 12px 12px}.bar{margin:2px 0}}
 .cb .bar i b{filter:hue-rotate(160deg)}
 </style>
 </head>
@@ -207,7 +210,11 @@ function crossScore(strokes,sz){
  const vcx=(v.x0+v.x1)/2,hcy=(h.y0+h.y1)/2;
  const r=(hcy-v.y0)/Math.max(v.y1-v.y0,1),sPos=clamp(1-Math.abs(r-.38)/.45);
  const hx=(vcx-h.x0)/Math.max(h.x1-h.x0,1),sCov=clamp(1-Math.abs(hx-.5)/.5);
- return Math.round(100*(.25*sV+.25*sH+.15*st+.15*sz2+.1*sPos+.1*sCov));
+ let acc=Math.round(100*(.25*sV+.25*sH+.15*st+.15*sz2+.1*sPos+.1*sCov));
+ if(Math.min(v.len,h.len)<sz*.15)return Math.min(acc,15);
+ if(angV>45||angH>45)return Math.min(acc,20);
+ if(!(vcx>=h.x0&&vcx<=h.x1&&hcy>=v.y0&&hcy<=v.y1))acc=Math.min(acc,35);
+ return acc;
 }
 </script>
 
@@ -216,9 +223,9 @@ function crossScore(strokes,sz){
 const $=s=>document.querySelector(s);
 let ST={vol:.8,vib:true,subs:true,calm:false,btn:false,cb:false};
 let S={ch:0,def:[],saved:0,mercy:0,fx:0};
-let G={found:{},choices:{},pick:null,mode:"title",rite:null};
+let G={started:false,found:{},choices:{},pick:null,mode:"title",rite:null};
 const KEY="exorcismus_v1";
-function save(){try{localStorage.setItem(KEY,JSON.stringify({S,ST}))}catch(e){}}
+function save(over){try{let old={};try{old=JSON.parse(localStorage.getItem(KEY))||{}}catch(e){}localStorage.setItem(KEY,JSON.stringify({S:over||(G.started?S:old.S),ST}))}catch(e){}}
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){if(d.ST)Object.assign(ST,d.ST);return d.S||null}}catch(e){}return null}
 function vib(p){if(ST.vib&&navigator.vibrate){try{navigator.vibrate(p)}catch(e){}}}
 
@@ -411,11 +418,11 @@ function drawDemon(k,cx,cy,hr,col){
 }
 let CIN=null;
 function drawRite(r){
- bg(r.ci);const d=DEM[r.k];
- const ox=shake>0?(Math.random()-.5)*5:0;x.save();x.translate(ox,0);
+ bg(r.ci);const d=DEM[r.face||r.k];
+ const ox=(shake>0&&!ST.calm)?(Math.random()-.5)*5:0;x.save();x.translate(ox,0);
  const win=CIN&&CIN.kind==="win",poss=CIN&&CIN.kind==="poss";
  if(win){x.globalAlpha=Math.max(0,1-CIN.k*1.25)}
- drawDemon(r.k,80+(win?(Math.random()-.5)*4:0),10,r.hp/r.max,d.c);x.globalAlpha=1;
+ drawDemon(r.face||r.k,80+(win?(Math.random()-.5)*4:0),10,r.hp/r.max,d.c);x.globalAlpha=1;
  const lv=r.po>60?(r.po-60)/5:0,hc=win?"#c9b79a":mix("#c9b79a","#8a1c2b",r.po/100);
  if(poss){const hx=14+Math.min(1,CIN.k*1.6)*100;Rc(hx-3,84,7,13,"#cfc6b0");disc(hx,81,3,"#c9b79a");Rc(hx+3,87,9,2,"#cfc6b0");Rc(hx+3,91,9,2,"#cfc6b0");Rc(hx-2,80,2,1,"#fff");Rc(hx+1,80,2,1,"#fff")}
  else{Rc(14,94-lv,16,4,hc);disc(12,92-lv,3,hc)}
@@ -425,7 +432,7 @@ function drawRite(r){
  const lowf=r.fe/r.feMax;
  if(lowf<.4){x.globalAlpha=(.4-lowf);Rc(0,0,160,120,"#6a0a18");x.globalAlpha=1}
  if(CIN){
-  if(poss){if(Math.sin(CIN.t*38)>0){x.globalAlpha=.4;Rc(0,0,160,120,"#b00010");x.globalAlpha=1}if(CIN.k>.8){x.globalAlpha=(CIN.k-.8)*5;Rc(0,0,160,120,"#000");x.globalAlpha=1}}
+  if(poss){if(ST.calm){x.globalAlpha=.25;Rc(0,0,160,120,"#b00010");x.globalAlpha=1}else if(Math.sin(CIN.t*38)>0){x.globalAlpha=.4;Rc(0,0,160,120,"#b00010");x.globalAlpha=1}if(CIN.k>.8){x.globalAlpha=(CIN.k-.8)*5;Rc(0,0,160,120,"#000");x.globalAlpha=1}}
   if(CIN.kind==="fe"){if(CIN.k>.3){const n=Math.min(4,Math.floor((CIN.k-.3)*9));x.globalAlpha=.9;for(let i=0;i<n;i++){for(let s=0;s<70;s++)Rc(30+i*22+s*.35,8+s*1.4,3,2,"#c0102a")}x.globalAlpha=1}
   x.globalAlpha=Math.min(.95,CIN.k*1.1);Rc(0,0,160,120,"#000");x.globalAlpha=1;if(CIN.k>.35){const s=Math.min(1,(CIN.k-.35)*2);Rc(58,52,14*s,6*s,"#ff2a40");Rc(88,52,14*s,6*s,"#ff2a40")}}
   if(win){x.globalAlpha=Math.max(0,.85-CIN.k*2.6);Rc(0,0,160,120,"#fff");x.globalAlpha=1}
@@ -480,7 +487,7 @@ function frame(ts){
 }
 requestAnimationFrame(frame);
 function scare(){
- if(ST.calm){flash=.3;return}
+ if(ST.calm){cap("algo se aproxima");return}
  sfx("scare");vib([80,40,120]);cap("grito agudo");SC={t:.28};$("#app").classList.remove("shake");void $("#app").offsetWidth;$("#app").classList.add("shake");
 }
 let scareT=null;
@@ -488,22 +495,22 @@ function armScare(){clearTimeout(scareT)}
 
 /* ===== TELAS ===== */
 const ui=$("#ui");
-function title(){
- G.mode="title";clearTimeout(scareT);const sv=load();
+function showTitle(){
+ G.mode="title";clearTimeout(scareT);const sv=load();const ok=sv&&!sv.done;
  ui.innerHTML=`<h1>Exorcismus</h1><p class="sub">RPG de terror gótico · Santa Clara do Ermo, 1962</p>
- <button class="b" onclick="newGame()">NOVO JOGO</button>
- ${sv?`<button class="b g" onclick="cont()">CONTINUAR (Caso ${["I","II","III","IV","V"][sv.ch]})</button>`:""}
+ ${ok?`<button class="b" onclick="cont()">CONTINUAR (Caso ${["I","II","III","IV","V"][sv.ch]})</button><button class="b g" onclick="askNew()">NOVO JOGO</button>`:`<button class="b" onclick="newGame()">NOVO JOGO</button>`}
  <button class="b g" onclick="openOpts()">OPÇÕES</button>
- <p class="sub" style="margin-top:12px">Use fones de ouvido, no escuro. Toque em “Novo jogo” para ligar o som. No iPhone, desligue o modo silencioso (chavinha lateral) e aumente o volume.</p>`;
+ <p class="sub" style="margin-top:12px">Use fones de ouvido, no escuro. Toque em um botão para ligar o som. No iPhone, desligue o modo silencioso (chavinha lateral) e aumente o volume.</p>`;
 }
-function newGame(){au();sfx("click");S={ch:0,def:[],saved:0,mercy:0,fx:0};save();
+function askNew(){sfx("click");ui.innerHTML=`<h2>Começar um novo jogo?</h2><div class="box"><p>Já existe um jogo salvo. Começar de novo <b>apaga o progresso</b> atual.</p></div><button class="b" onclick="newGame()">APAGAR E COMEÇAR DE NOVO</button><button class="b g" onclick="showTitle()">VOLTAR</button>`}
+function newGame(){au();sfx("click");S={ch:0,def:[],saved:0,mercy:0,cc:{}};G.started=true;save();
  G.mode="title";ui.innerHTML=`<h2>Prólogo</h2><div class="box"><p>Minas Gerais, 1962. O velho Padre Benedito, exorcista de Santa Clara do Ermo, foi encontrado morto, e ninguém quer explicar como.</p><p>Você, Padre Tomás Aurélio, 28 anos, chega para substituí-lo. Na primeira noite, a sineta da igreja toca sozinha.</p><p>Você não tem arma nenhuma. Só a fé, e ela anda curta.</p></div><button class="b" onclick="startCase()">ENTRAR NA VILA</button>`}
-function cont(){au();const s=load();if(s){S=s;startCase()}}
+function cont(){au();const s=load();if(s&&!s.done){S=s;S.cc=S.cc||{};G.started=true;startCase()}}
 function startCase(){
- sfx("click");au();G.found={};G.choices={};G.pick=null;G.rite=null;G.hostFound=false;G.hostT=0;G.lock=false;G.stage="sinais";G.mode="explore";mouse.tx=60;mouse.ty=70;eyes=[];armScare();save();exploreUI();
+ sfx("click");au();S.cc=S.cc||{};G.found={};G.choices=S.cc[S.ch]=S.cc[S.ch]||{};G.pick=null;G.rite=null;G.hostFound=false;G.hostT=0;G.lock=false;G.stage="sinais";G.mode="explore";mouse.tx=60;mouse.ty=70;eyes=[];armScare();save();exploreUI();
 }
 const HX=[54,104,52,102,54];
-function steps(n){const L=["Sinais","Possuído","Diário","Rito"];return`<div style="display:flex;gap:4px;margin-bottom:8px">${L.map((l,i)=>`<div style="flex:1;text-align:center;font-size:11px;padding:4px 2px;border-radius:4px;border:1px solid ${i+1===n?"#e0b252":"#2a3050"};color:${i+1===n?"#e0b252":i+1<n?"#7a9":"#667"};background:${i+1===n?"rgba(122,18,38,.4)":"transparent"}">${i+1}. ${l}</div>`).join("")}</div>`}
+function stepBar(n){const L=["Sinais","Possuído","Diário","Rito"];return`<div style="display:flex;gap:4px;margin-bottom:8px">${L.map((l,i)=>`<div style="flex:1;text-align:center;font-size:11px;padding:4px 2px;border-radius:4px;border:1px solid ${i+1===n?"#e0b252":"#2a3050"};color:${i+1===n?"#e0b252":i+1<n?"#7a9":"#667"};background:${i+1===n?"rgba(122,18,38,.4)":"transparent"}">${i+1}. ${l}</div>`).join("")}</div>`}
 function nFound(){return Object.keys(G.found).length}
 function stage(){return nFound()<CASES[S.ch].objs.length?"sinais":(!G.hostFound?"procurar":"achado")}
 function exploreUI(msg){
@@ -512,7 +519,7 @@ function exploreUI(msg){
  if(!msg&&st==="sinais")body=`<p>${c.intro}</p><p style="color:#8c91ad;font-size:12px">Arraste o dedo (ou o mouse) sobre a cena para mover a luz da vela. Os pontos dourados são sinais: toque neles ou use os botões.</p>`;
  if(st==="procurar")body+=`<p style="color:#ff9aa8"><i>Todos os sinais anotados. Um gemido baixo vem da escuridão… O possuído está por perto. Mova a luz pela cena até encontrá-lo.</i></p>`;
  if(!msg&&st==="achado")body=`<p>Agora você sabe quem sofre. No diário, descubra o nome do demônio.</p>`;
- ui.innerHTML=steps(st==="sinais"?1:st==="procurar"?2:3)+`<h2>${c.t}</h2><div class="box">${body}</div>`
+ ui.innerHTML=stepBar(st==="sinais"?1:st==="procurar"?2:3)+`<h2>${c.t}</h2><div class="box">${body}</div>`
  +(st==="sinais"?`<div class="sub">Sinais encontrados: ${nFound()}/${c.objs.length}</div>`+c.objs.map((o,i)=>`<button class="b g" onclick="examine(${i})">${G.found[o.n]?"✔ ":""}${o.k==="npc"?"Falar com":"Examinar"}: ${o.n}</button>`).join(""):"")
  +(st==="procurar"?`<button class="b g" onclick="hint()">💡 PISTA: DE QUE LADO ELE ESTÁ?</button>`:"")
  +(st==="achado"?`<button class="b" onclick="diary()">PASSO 3 · ABRIR O DIÁRIO</button>`:"");
@@ -525,7 +532,7 @@ function examine(i){
  if(o.ch&&G.choices[o.n]==null){
   G.lock=true;
   h+=`<p style="margin-top:8px"><i>${o.ch.q}</i></p>`+o.ch.o.map((q,j)=>`<button class="b g" onclick="choose(${i},${j})">${q.t}</button>`).join("");
-  ui.innerHTML=steps(1)+`<h2>${c.t}</h2><div class="box">${h}</div>`;return;
+  ui.innerHTML=stepBar(1)+`<h2>${c.t}</h2><div class="box">${h}</div>`;return;
  }
  exploreUI(h);
 }
@@ -536,14 +543,14 @@ function choose(i,j){
 function hint(){sfx("click");exploreUI(`<p>O gemido vem da <b>${HX[S.ch]<80?"esquerda":"direita"}</b> da cena.</p>`)}
 function findHost(){
  if(G.hostFound||G.lock)return;G.hostFound=true;scare();const c=CASES[S.ch];
- setTimeout(()=>{mouse.tx=HX[S.ch];mouse.ty=88;exploreUI(`<p><b>${c.host}</b> jaz no chão. Os olhos se abrem de repente, brancos, e uma voz que não é humana sussurra o seu nome.</p>`)},800);
+ G.ht=setTimeout(()=>{if(G.mode!=="explore")return;mouse.tx=HX[S.ch];mouse.ty=88;exploreUI(`<p><b>${c.host}</b> jaz no chão. Os olhos se abrem de repente, brancos, e uma voz que não é humana sussurra o seu nome.</p>`)},800);
 }
 function diary(){
- sfx("click");G.mode="diary";const c=CASES[S.ch];
- ui.innerHTML=steps(3)+`<div class="box pap"><h2>DIÁRIO DO PADRE TOMÁS</h2><p><b>Hospedeiro:</b> ${c.host}</p>
+ sfx("click");clearTimeout(G.ht);G.mode="diary";const c=CASES[S.ch];
+ ui.innerHTML=stepBar(3)+`<div class="box pap"><h2>DIÁRIO DO PADRE TOMÁS</h2><p><b>Hospedeiro:</b> ${c.host}</p>
  ${c.objs.filter(o=>G.found[o.n]).map(o=>`<div class="cl" style="border-color:#6b1020">${o.cl}</div>`).join("")}
  <p style="margin-top:10px"><b>Qual é o verdadeiro nome do demônio?</b> Os já exorcizados não voltam. Errar o nome o deixa mais forte e bloqueia o Rito Final.</p>
- ${Object.keys(DEM).map(k=>{const dead=S.def.includes(k);return`<div class="dem ${dead?"off":""} ${G.pick===k?"on":""}" ${dead?"":`onclick="pick('${k}')"`}><b>${DEM[k].n}${dead?" (exorcizado)":""}</b><small>${DEM[k].d}</small></div>`}).join("")}
+ ${Object.keys(DEM).map(k=>{const dead=S.def.includes(k);return`<div class="dem ${dead?"off":""} ${G.pick===k?"on":""}" role="button" aria-disabled="${dead}" ${dead?"":`tabindex="0" onclick="pick('${k}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();pick('${k}')}"`}><b>${DEM[k].n}${dead?" (exorcizado)":""}</b><small>${DEM[k].d}</small></div>`}).join("")}
  </div>
  <button class="b" onclick="startRite()" ${G.pick?"":"disabled"}>INICIAR O RITO</button>
  <button class="b g" onclick="G.mode='explore';exploreUI()">VOLTAR À INVESTIGAÇÃO</button>`;
@@ -551,21 +558,21 @@ function diary(){
 function pick(k){sfx("click");G.pick=k;diary()}
 function feMax(){return 14+2*S.saved}
 function startRite(){
- sfx("holy");G.mode="rite";clearTimeout(scareT);
- G.rite=newRite(S.ch,G.pick===CASES[S.ch].id,S.mercy,feMax());G.rite.warned=false;
+ clearTimeout(G.ht);sfx("holy");G.mode="rite";clearTimeout(scareT);
+ G.rite=newRite(S.ch,G.pick===CASES[S.ch].id,S.mercy,feMax());G.rite.warned=false;G.rite.face=G.pick;
  riteUI(`O ar fica pesado. <b>${DEM[G.pick].n}</b> ${G.pick===CASES[S.ch].id?"reconhece o seu olhar.":"ri: o nome estava errado."}`);
 }
 const bar=(l,v,m,c)=>{const dg=l==="Possessão"?v>=75:(l==="Fé"||l==="Vontade")&&v/m<=.25;return`<div class="bar"><span class="${dg?"gl":""}" style="${dg?"color:#ff5a6a":""}">${dg?"⚠ ":""}${l}</span><i><b style="width:${clamp(v/m)*100}%;background:${c}"></b></i><em>${Math.round(v)}/${m}</em></div>`};
 function riteUI(log){
- const r=G.rite,d=DEM[r.k];
- const shown=r.hid?"…a voz embaralha as intenções dele…":LBL[r.lie||r.intent]+(r.lie?" (?)":"");
+ const r=G.rite,d=DEM[r.face||r.k];
+ const shown=r.hid?"…a voz embaralha as intenções dele…":LBL[r.lie||r.intent];
  const b=(a,l,s)=>`<button class="b ${a==="fim"?"":"g"}" ${can(r,a)?"":"disabled"} onclick="act('${a}')">${l}<br><small style="font-weight:400">${s}</small></button>`;
- ui.innerHTML=steps(4)+`<h2>${CASES[r.ci].t.split("·")[1]} · ${d.n}</h2>
+ ui.innerHTML=stepBar(4)+`<h2>${CASES[r.ci].t.split("·")[1]} · ${d.n}</h2>
  ${bar("Fé",r.fe,r.feMax,"#e0b252")}${bar("Vontade",r.vo,r.voMax,"#5d8be0")}${bar("Domínio",r.hp,r.max,"#c0243c")}${bar("Possessão",r.po,100,"#8a3ad0")}
  <div class="sub" style="font-size:11px;margin:2px 0 0">Zere o <b>Domínio</b> para exorcizar. Você perde se a <b>Possessão</b> chegar a 100% (o demônio vence) ou se a <b>Fé</b> ou a <b>Vontade</b> chegarem a 0.</div>
  <div class="int ${r.fe/r.feMax<.35?"gl":""}">${shown}</div>
  <div class="log">${log||""}</div>
- <div class="row"><div style="flex:1">${b("orar","🙏 Orar","+Fé, escudo")}${b("cruz","✝ Crucifixo","atordoa · −1 Vont (mín. 2)")}</div><div style="flex:1">${b("agua","💧 Água benta","dano · "+r.water+" restantes")}${b("rit","📖 Rituale","dano crescente · −2 Vont (mín. 3)")}</div></div>
+ <div class="row"><div style="flex:1">${b("orar","🙏 Orar","+Fé, escudo")}${b("cruz","✝ Crucifixo",r.cd>0?"recarregando ("+r.cd+" turno"+(r.cd>1?"s":"")+")":"atordoa · −1 Vont (mín. 2)")}</div><div style="flex:1">${b("agua","💧 Água benta","dano · "+r.water+" restantes")}${b("rit","📖 Rituale","dano crescente · −2 Vont (mín. 3)")}</div></div>
  <button class="b" ${can(r,"fim")?"":"disabled"} onclick="act('fim')">☩ RITO FINAL <small style="font-weight:400">${!r.ok?"(nome errado: bloqueado)":r.hp>r.max*.5?"(enfraqueça-o abaixo de 50%)":r.vo<5?"(precisa de 5 Vontade)":"−4 Vont"}</small></button>`;
 }
 const DMG={agua:1,rit:1,fim:1};
@@ -578,7 +585,7 @@ function act(a){
 function resolve(a,m,acc){
  const r=G.rite;
  const t1=playerAct(r,a,m)+(acc!=null?` Precisão da cruz: ${acc}%.`:"");
- playerSfx(a);flash=.35;vib(a==="fim"?[80,40,180]:40);
+ playerSfx(a);flash=ST.calm?0:.35;vib(a==="fim"?[80,40,180]:40);
  if(r.over==="win")return endRite(t1);
  const used=r.intent,stunned=r.stun;
  const t2=enemyAct(r);
@@ -604,16 +611,16 @@ function enemySfx(k){
 }
 function cinematic(kind,msg,seq,vp,dur,done){
  CIN={kind,t:0,k:0,dur};const app=$("#app");
- if(kind!=="win")app.classList.add("shake2");
+ if(kind!=="win"&&!ST.calm)app.classList.add("shake2");
  ui.innerHTML=`<div class="box" style="text-align:center;margin-top:20px"><h2 class="gl" style="font-size:20px">${msg.t}</h2><p>${msg.x}</p></div>`;
- if(vp)vib(vp);
+ if(vp&&!ST.calm)vib(vp);
  seq.forEach(([t,f])=>setTimeout(()=>{if(au())f()},t));
  setTimeout(()=>{CIN=null;app.classList.remove("shake2");done()},dur);
 }
 function endRite(last){
  const r=G.rite;G.mode="rite";
  if(r.over==="win"){
-  const saved=r.po<70;if(saved)S.saved++;S.def.push(r.k);save();
+  const saved=r.po<70;if(saved)S.saved++;S.def.push(r.k);save({...S,ch:Math.min(4,S.ch+1),done:S.ch===4});
   cinematic("win",{t:"EXORCISMO COMPLETO",x:`O Domínio de ${DEM[r.k].n} chegou a 0%. Ele grita com a própria voz e se desfaz em cinzas.`},
    [[0,()=>{sfx("boom");sfx("hurt")}],[500,()=>sfx("choir")],[1000,()=>scream(.45,1.2,false)],[1400,()=>sfx("chime")],[2000,()=>sfx("win")]],
    [100,60,100,60,300],2800,()=>showWin(last,saved));
@@ -629,7 +636,7 @@ function endRite(last){
 }
 function showWin(last,saved){
  const r=G.rite,c=CASES[S.ch],end=S.ch===4,left=5-S.def.length;
- ui.innerHTML=steps(4)+`<h2>${DEM[r.k].n} foi exorcizado!</h2><div class="box"><p>${last}</p><p>${saved?`<b>${c.host.split(",")[0]} foi salvo(a).</b> A gratidão fortalece sua fé (+2 Fé máx).`:`<b>${c.host.split(",")[0]} sobrevive, mas marcado(a).</b> A possessão foi longe demais.`}</p>${left?`<p>Faltam <b>${left}</b> demônio${left>1?"s":""} na vila.</p>`:""}</div>
+ ui.innerHTML=stepBar(4)+`<h2>${DEM[r.k].n} foi exorcizado!</h2><div class="box"><p>${last}</p><p>${saved?`<b>${c.host.split(",")[0]} foi salvo(a).</b> A gratidão fortalece sua fé (+2 Fé máx).`:`<b>${c.host.split(",")[0]} sobrevive, mas marcado(a).</b> A possessão foi longe demais.`}</p>${left?`<p>Faltam <b>${left}</b> demônio${left>1?"s":""} na vila.</p>`:""}</div>
  <div class="box pap"><h2>Página do diário recuperada</h2><p><i>${c.page}</i></p></div>
  <button class="b" onclick="${end?"ending()":"nextCase()"}">${end?"O AMANHECER":"EXORCIZAR O PRÓXIMO DEMÔNIO"}</button>`;
 }
@@ -641,27 +648,29 @@ function showLose(last,poss){
 function retry(){startRite()}
 function nextCase(){S.ch++;save();startCase()}
 function ending(){
- sfx("holy");G.mode="title";
+ sfx("holy");G.mode="title";G.started=true;
  const sv=S.saved,m=S.mercy;let t,txt;
  if(sv>=4&&m>=3){t="Redenção";txt="O pacto se rompe com a verdade, não com a força. Santa Clara do Ermo amanhece sem neblina. Pela primeira vez, a sineta toca porque alguém a puxou. Tomás finalmente acredita.";}
  else if(sv>=2){t="Cicatrizes";txt="A vila está livre, mas lembra. Há marcas nas pessoas, e fios de cinza nas paredes da Matriz. Tomás fica. Alguém precisa vigiar o que ficou pelo caminho.";}
  else{t="A dívida continua";txt="O sol nasce, e Tomás sorri aliviado. Então ouve, bem baixinho, atrás da própria orelha, uma voz amável que conhece o seu nome. Ele não grita. Ele cochicha.";}
- ui.innerHTML=`<h1 style="font-size:34px">${t}</h1><div class="box"><p>${txt}</p><p style="color:#8c91ad">Salvos: ${sv}/5 · Compaixão: ${m}/5</p></div><button class="b" onclick="newGame()">JOGAR DE NOVO</button><button class="b g" onclick="title()">MENU</button>`;
+ ui.innerHTML=`<h1 style="font-size:34px">${t}</h1><div class="box"><p>${txt}</p><p style="color:#8c91ad">Salvos: ${sv}/5 · Compaixão: ${m}/5</p></div><button class="b" onclick="newGame()">JOGAR DE NOVO</button><button class="b g" onclick="showTitle()">MENU</button>`;
 }
 
 /* ===== SINAL DA CRUZ ===== */
 function crossUI(cb){
  const o=$("#cross");o.style.display="flex";
- o.innerHTML=`<h2>Trace o sinal da cruz</h2><p class="sub">Um traço de cima para baixo e outro da esquerda para a direita. Quanto mais certo, maior o dano.</p><canvas id="cc" width="320" height="320"></canvas><div id="ca" class="sub" style="height:22px;margin-top:8px"></div><div class="row" style="width:min(80vw,320px)"><button class="b g" id="cl">Limpar</button><button class="b g" id="cb2">Usar botão (75%)</button></div>`;
- const c=$("#cc"),g=c.getContext("2d");let strokes=[],cur=null,done=false;
+ o.innerHTML=`<h2>Trace o sinal da cruz</h2><p class="sub">Um traço de cima para baixo e outro da esquerda para a direita. Quanto mais certo, maior o dano.</p><canvas id="cc" width="320" height="320"></canvas><div id="ca" class="sub" style="height:22px;margin-top:8px"></div><div class="row" style="width:min(80vw,320px)"><button class="b g" id="cl">Limpar</button><button class="b g" id="cb2">Usar botão (75%)</button></div><button class="b g" id="cc2" style="width:min(80vw,320px)">Cancelar</button>`;
+ const c=$("#cc"),g=c.getContext("2d");let strokes=[],cur=null,done=false,pid=null;
  const redraw=()=>{g.clearRect(0,0,320,320);g.strokeStyle="#e0b252";g.shadowColor="#e0b252";g.shadowBlur=12;g.lineWidth=5;g.lineCap="round";g.lineJoin="round";
   strokes.concat(cur?[cur]:[]).forEach(s=>{g.beginPath();s.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));g.stroke()})};
  const pt=e=>{const r=c.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*320,y:(e.clientY-r.top)/r.height*320}};
  const finish=acc=>{done=true;$("#ca").textContent=`Precisão: ${acc}%`;setTimeout(()=>{o.style.display="none";cb(acc)},650)};
- c.onpointerdown=e=>{if(done||strokes.length>=2)return;c.setPointerCapture(e.pointerId);cur=[pt(e)];redraw()};
- c.onpointermove=e=>{if(cur){cur.push(pt(e));redraw()}};
- c.onpointerup=()=>{if(!cur)return;if(cur.length>3)strokes.push(cur);cur=null;redraw();if(strokes.length===2)finish(crossScore(strokes,320))};
- $("#cl").onclick=()=>{if(!done){strokes=[];cur=null;redraw()}};
+ c.onpointerdown=e=>{if(done||strokes.length>=2||pid!==null)return;pid=e.pointerId;try{c.setPointerCapture(e.pointerId)}catch(_){}cur=[pt(e)];redraw()};
+ c.onpointermove=e=>{if(cur&&e.pointerId===pid){cur.push(pt(e));redraw()}};
+ c.onpointercancel=()=>{cur=null;pid=null;redraw()};
+ c.onpointerup=e=>{if(!cur||e.pointerId!==pid)return;pid=null;if(cur.length>3)strokes.push(cur);cur=null;redraw();if(strokes.length===2)finish(crossScore(strokes,320))};
+ $("#cl").onclick=()=>{if(!done){strokes=[];cur=null;pid=null;redraw()}};
+ $("#cc2").onclick=()=>{if(!done){done=true;o.style.display="none"}};
  $("#cb2").onclick=()=>{if(!done)finish(75)};
 }
 
@@ -672,18 +681,19 @@ function openOpts(){
  o.innerHTML=`<h2>Opções</h2><label>Volume<input type="range" min="0" max="1" step=".05" value="${ST.vol}" oninput="ST.vol=+this.value;vol();optApply(1)"></label>
  ${t("vib","Vibração")}${t("subs","Legendas de efeitos sonoros")}${t("calm","Reduzir sustos (sem flashes e jumpscares)")}${t("btn","Cruz por botão (sem gesto)")}${t("cb","Modo daltônico")}
  <button class="b g" onclick="testSound()">🔊 TESTAR SOM</button><p class="sub" id="snd" style="margin-top:6px"></p>
- <p class="sub" style="margin-top:10px">Idioma: Português (BR)</p><button class="b" onclick="$('#opt').style.display='none'">VOLTAR</button>`;
+ <p class="sub" style="margin-top:10px">Idioma: Português (BR)</p>${G.started&&G.mode!=="title"&&!CIN?`<button class="b g" onclick="quitGame()">SAIR PARA O MENU</button><p class="sub" style="font-size:11px">O jogo salva ao começar cada caso. Ao continuar, o caso atual recomeça.</p>`:""}<button class="b" onclick="$('#opt').style.display='none'">VOLTAR</button>`;
 }
+function quitGame(){$("#opt").style.display="none";$("#cross").style.display="none";clearTimeout(G.ht);SC=null;G.rite=null;showTitle()}
 function testSound(){
  const c=au();sfx("holy");setTimeout(()=>sfx("hit"),700);
  const e=$("#snd");if(!e)return;
  setTimeout(()=>{e.textContent=!c?"Este navegador não suporta áudio Web.":("Estado do áudio: "+A.ctx.state+(IOS?(A.vel&&!A.vel.paused?" · saída iOS ativa":" · saída iOS parada"):"")+(A.ctx.state==="running"?" (se não ouviu nada: desligue o modo silencioso e suba o volume)":" (toque no botão de novo)"))},300);
 }
-function optApply(q){document.body.classList.toggle("cb",ST.cb);if(!q)save()}
-optApply(1);
+function optApply(q){document.body.classList.toggle("cb",ST.cb);document.body.classList.toggle("calm",ST.calm);if(!q)save()}
+load();optApply(1);
 ["pointerdown","touchend","click"].forEach(ev=>document.addEventListener(ev,()=>{if(A.vel&&A.vel.paused)A.vel.play().catch(()=>{});if(A.ctx&&A.ctx.state!=="running")au()},{passive:true}));
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&A.ctx&&A.ctx.state!=="running")A.ctx.resume()});
-title();
+showTitle();
 window.__dbg={S,G,ST,examine,diary,pick,startRite,act,resolve,newGame,startCase};
 </script>
 </body>
