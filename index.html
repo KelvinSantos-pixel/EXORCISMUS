@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Exorcismus</title>
+<link href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{--f:.3;--gold:#e0b252;--wine:#7a1226;--ink:#05060d;--pap:#d9c8a0}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{margin:0;height:100%;background:#020308;color:#cfd3e6;font-family:Georgia,'Times New Roman',serif;overflow:hidden}
+#app{position:relative;max-width:480px;height:100dvh;margin:0 auto;display:flex;flex-direction:column;background:var(--ink);overflow:hidden}
+#stage{position:relative;width:100%;aspect-ratio:4/3;flex:none;background:#000}
+#cv{width:100%;height:100%;display:block;image-rendering:pixelated;touch-action:none}
+#stage:after{content:"";position:absolute;inset:0;pointer-events:none;
+ background:radial-gradient(ellipse at center,transparent calc(65% - var(--f)*35%),rgba(0,0,0,.9) 100%),repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px)}
+#cap{position:absolute;left:0;right:0;top:4px;text-align:center;font:11px monospace;color:#9aa;opacity:0;transition:opacity .3s;pointer-events:none;text-shadow:0 0 3px #000}
+#ui{flex:1;overflow:auto;padding:10px 12px 16px;background:linear-gradient(#0a0d18,#05060d)}
+h1{font-family:'UnifrakturCook','Old English Text MT',Georgia,serif;color:var(--gold);text-align:center;font-size:44px;margin:2px 0;text-shadow:0 0 12px #7a1226,0 2px 0 #000;letter-spacing:1px}
+h2{color:var(--gold);font-size:15px;margin:0 0 6px;letter-spacing:.5px}
+.sub{text-align:center;color:#8c91ad;font-size:13px;margin:0 0 10px}
+p{margin:0 0 8px;line-height:1.45;font-size:14px}
+.b{display:block;width:100%;margin:6px 0;padding:11px 10px;background:linear-gradient(#8a1830,#5a0e1f);color:#f3e6c4;border:1px solid #b8923f;border-radius:5px;font:700 14px Georgia,serif;letter-spacing:.5px;cursor:pointer}
+.b:active{transform:scale(.98)}
+.b.g{background:#0c1020;border-color:#4a4f70;color:#b8bdd8}
+.b[disabled]{opacity:.35;cursor:default}
+.row{display:flex;gap:6px}.row .b{margin:4px 0}
+.box{background:rgba(20,26,48,.85);border:1px solid #2a3050;border-radius:6px;padding:9px 10px;margin:6px 0;animation:fin 1.2s}
+.pap{background:var(--pap);color:#2a1d10;border-color:#8a6a35}
+.pap h2{color:#6b1020}.pap p{color:#2a1d10}
+@keyframes fin{from{opacity:0;filter:blur(3px)}to{opacity:1;filter:none}}
+.bar{display:flex;align-items:center;gap:6px;margin:3px 0;font-size:12px}
+.bar span{width:78px;color:#aab}.bar i{flex:1;height:9px;background:#0a0c18;border:1px solid #2a3050;display:block;position:relative}
+.bar i b{position:absolute;left:0;top:0;bottom:0;display:block;transition:width .4s}
+.bar em{width:44px;text-align:right;font-style:normal;font-family:monospace;color:#cfd3e6}
+.cl{border-left:3px solid var(--wine);padding:3px 8px;margin:5px 0;font-size:13px}
+.dem{padding:9px;margin:5px 0;border:1px solid #8a6a35;border-radius:5px;background:rgba(255,255,255,.35);cursor:pointer;color:#2a1d10}
+.dem.on{background:#7a1226;color:#f3e6c4;border-color:#e0b252}
+.dem.off{opacity:.4;text-decoration:line-through;cursor:default}
+.dem b{display:block;font-size:14px}.dem small{font-size:12px}
+.int{text-align:center;padding:7px;border:1px solid var(--wine);background:#12060b;color:#ff9aa8;font-size:13px;margin:6px 0}
+.log{min-height:38px;font-size:13px;color:#aeb3cc;font-style:italic}
+.gl{animation:gl .25s infinite}
+@keyframes gl{0%{text-shadow:2px 0 #f00,-2px 0 #0ff}50%{text-shadow:-2px 0 #f00,2px 0 #0ff;transform:translateX(1px)}100%{text-shadow:none}}
+.shake{animation:sh .4s}
+@keyframes sh{0%,100%{transform:none}20%{transform:translate(-6px,3px)}40%{transform:translate(5px,-4px)}60%{transform:translate(-4px,-2px)}80%{transform:translate(3px,4px)}}
+#cross,#opt{position:absolute;inset:0;background:rgba(2,3,8,.96);z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px;overflow:auto}
+#cross canvas{width:min(80vw,320px);height:min(80vw,320px);background:#08091a;border:1px solid #5a0e1f;touch-action:none;border-radius:6px}
+#opt{justify-content:flex-start;align-items:stretch}
+#opt label{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #1c2038;font-size:14px}
+.gear{position:absolute;right:6px;top:6px;z-index:5;background:rgba(0,0,0,.55);border:1px solid #4a4f70;color:#b8bdd8;border-radius:5px;padding:3px 8px;font-size:15px;cursor:pointer}
+.cb .bar i b{filter:hue-rotate(160deg)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"><canvas id="cv" width="160" height="120"></canvas><div id="cap"></div><button class="gear" onclick="openOpts()" aria-label="Opções">⚙</button></div>
+  <div id="ui"></div>
+  <div id="cross"></div>
+  <div id="opt"></div>
+</div>
+
+<script id="logic">
+/* ===== DADOS ===== */
+const DEM={
+ sus:{n:"O Sussurrante",d:"Vozes, ilusões e línguas que ninguém ensinou.",c:"#7aa6ff",hp:60},
+ mae:{n:"Mãe-Cinza",d:"Doença, secura e cinzas onde havia vida.",c:"#b9b3a8",hp:75},
+ cao:{n:"Cão de Ferrugem",d:"Ira, ferro e cheiro de sangue velho.",c:"#e0703a",hp:90},
+ not:{n:"O Notário",d:"Pactos, dívidas e assinaturas em papel velho.",c:"#d6b24a",hp:105},
+ leg:{n:"Legião",d:"Muitas vozes numa só: as almas devidas da vila.",c:"#c0243c",hp:120}
+};
+const CASES=[
+{id:"sus",t:"I · A Menina da Rua das Flores",host:"Maria, 9 anos",
+ intro:"Santa Clara do Ermo, 1962. Na primeira noite, uma menina fala línguas que nunca aprendeu. A vela do quarto treme sem vento. Você é o Padre Tomás, e não tem armas: só a fé.",
+ page:"“Cheguei tarde. A vila tem uma dívida antiga, e eles vieram cobrar.” — Pe. Benedito",
+ objs:[
+ {x:30,k:"npc",n:"Dona Ana, a mãe",tx:"“Ela fala com a voz do Padre Benedito, padre. Do morto.” Dona Ana não para de tremer.",
+  cl:"A menina fala línguas que ninguém ensinou, com a voz de um morto.",
+  ch:{q:"A mãe chora e treme diante de você.",o:[{t:"Abraçá-la e acalmá-la",m:1,r:"Ela respira fundo: “Salve minha filha, padre.”"},{t:"Mandá-la sair do quarto",m:0,r:"Ela obedece, calada, com medo de você."}]}},
+ {x:78,k:"obj",n:"O espelho",tx:"No espelho, seu reflexo mexe os lábios antes de você. Uma voz mansa diz o seu nome. Nada ali é real.",
+  cl:"O espelho mente: ilusões e vozes que imitam quem já se foi."},
+ {x:122,k:"obj",n:"O caderno",tx:"Desenhos de gente sem rosto, curvada para ouvir algo no ouvido. Na última página: “ele não grita, ele cochicha”.",
+  cl:"Ele não grita. Cochicha no ouvido de quem escuta."}]},
+{id:"mae",t:"II · A Santa Casa",host:"Dona Zefa, paciente",
+ intro:"A Santa Casa está quase vazia. Os poucos doentes não morrem e não melhoram. Tudo no prédio parece ter sido esquecido por Deus.",
+ page:"“Os fundadores assinaram em 1862, em troca do ouro da mina.” — Pe. Benedito",
+ objs:[
+ {x:30,k:"npc",n:"Irmã Lúcia",tx:"“Já vi tifo, já vi febre. Isto é outra coisa, padre. Tudo aqui está secando.”",
+  cl:"Uma doença que nenhum remédio cura: tudo em volta seca.",
+  ch:{q:"Lúcia quer dar um calmante à paciente, mas isso atrasa o rito.",o:[{t:"Deixar: ela sofre demais",m:1,r:"Dona Zefa solta um suspiro longo. Lúcia aperta sua mão."},{t:"Recusar: o remédio é a fé",m:0,r:"Lúcia abaixa o olhar. “Como o senhor quiser.”"}]}},
+ {x:82,k:"obj",n:"O leito",tx:"Os lençóis estão cobertos de cinza fina, ainda morna, como se alguém tivesse acabado de se levantar.",
+  cl:"Há cinza morna onde devia haver gente."},
+ {x:124,k:"obj",n:"O poço",tx:"O poço do pátio secou. No fundo, só pó cinza e uma mão de criança marcada na parede.",
+  cl:"O poço secou: só pó e cinza onde havia vida."}]},
+{id:"cao",t:"III · A Mina Velha",host:"Seu Anselmo, mineiro",
+ intro:"Seu Anselmo desceu à mina e voltou outro homem. Quebrou a casa inteira. Nos trilhos, algo velho rosna.",
+ page:"“Cinco assinaturas, cinco demônios. Um para cada pecado da fundação.” — Pe. Benedito",
+ objs:[
+ {x:30,k:"npc",n:"A viúva Marta",tx:"“Ele voltou com raiva, padre. Os olhos cor de ferrugem. Quebrou tudo, até o santo.”",
+  cl:"O homem voltou da mina tomado de ira, com os olhos cor de ferrugem.",
+  ch:{q:"Marta implora que não machuquem o marido.",o:[{t:"Prometer protegê-lo",m:1,r:"Ela chora de alívio e beija sua mão."},{t:"Dizer que não pode prometer",m:0,r:"Ela encara o chão. Você foi sincero, e frio."}]}},
+ {x:80,k:"obj",n:"Os trilhos",tx:"Os trilhos sangram ferrugem. Garras enormes riscaram o ferro, e o ar tem cheiro de sangue velho.",
+  cl:"Garras no ferro e cheiro de sangue velho."},
+ {x:124,k:"obj",n:"A lamparina",tx:"Uma lamparina acesa na galeria. Lá no fundo, um rosnado grave, de bicho preso há cem anos.",
+  cl:"Um rosnado de bicho preso há cem anos ecoa na galeria."}]},
+{id:"not",t:"IV · O Cemitério",host:"Tião, o coveiro",
+ intro:"No cemitério, as covas estão abertas e vazias. Tião, o coveiro, anda em círculos, murmurando números e prazos.",
+ page:"“A dívida não se paga com ouro. Se paga com almas. A minha é a próxima.” — Pe. Benedito",
+ objs:[
+ {x:30,k:"npc",n:"Tião, o coveiro",tx:"“Eu só abri a cova errada, padre. Ele me mostrou um papel. Eu assinei sem ler.”",
+  cl:"O coveiro assinou um papel sem ler e agora obedece.",
+  ch:{q:"Tião soluça de culpa.",o:[{t:"Perdoá-lo: foi enganado",m:1,r:"Ele cai de joelhos, aliviado e chorando."},{t:"Repreendê-lo pela imprudência",m:0,r:"Ele encolhe os ombros. A culpa pesa mais."}]}},
+ {x:80,k:"obj",n:"A lápide",tx:"Na lápide, em vez de um nome, um contrato: “cláusula 5: a dívida passa de pai para filho”.",
+  cl:"Os mortos têm cláusulas e prazos gravados nas lápides."},
+ {x:124,k:"obj",n:"O livro de registros",tx:"Um livro assinado com sangue. Cada nome da vila tem um valor escrito ao lado.",
+  cl:"Há uma dívida escrita ao lado de cada nome da vila."}]},
+{id:"leg",t:"V · As Catacumbas da Matriz",host:"Olavo, o sacristão",
+ intro:"Sob a igreja, as catacumbas respiram. As paredes sussurram em coro e o ar parece ter dentes. É a última porta.",
+ page:"“Se Tomás ler isto: quebre o pacto com a verdade, não com a força.” — Pe. Benedito",
+ objs:[
+ {x:30,k:"npc",n:"A memória de Benedito",tx:"“Tomás… não são cinco. Foi sempre um só, com muitas bocas. Os fundadores pagaram com a alma de todos nós.”",
+  cl:"Não é um só: são muitas vozes, as almas devidas da vila.",
+  ch:{q:"A sombra de Benedito pede uma promessa.",o:[{t:"Prometer libertar as almas",m:1,r:"“Então ainda há esperança…” A sombra sorri e some."},{t:"Prometer só terminar o rito",m:0,r:"A sombra assente, sem alegria, e se desfaz."}]}},
+ {x:80,k:"obj",n:"O ossuário",tx:"Mil crânios sussurram em coro, e todos têm exatamente a mesma voz.",
+  cl:"Muitas bocas falando como uma só."},
+ {x:124,k:"obj",n:"O altar do pacto",tx:"O pacto original: cinco assinaturas e uma sexta, ilegível. A da própria vila inteira.",
+  cl:"A dívida de toda a vila vem cobrar de uma vez."}]}
+];
+const LBL={bla:"Blasfêmia: ataca sua Fé",pos:"Tenta possuir o hospedeiro",fur:"FÚRIA: golpe pesado"};
+
+/* ===== LÓGICA DO RITO ===== */
+const rnd=n=>Math.floor(Math.random()*n);
+const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+function newRite(ci,ok,mercy,feMax){
+ const hp=Math.round(DEM[CASES[ci].id].hp*(ok?1:1.25));
+ const R={ci,k:CASES[ci].id,ok,hp,max:hp,fe:feMax,feMax,vo:4,voMax:6,po:0,water:3,stun:false,shield:0,ritu:0,cd:0,turn:0,last:"",mercy,over:null,log:[]};
+ pickIntent(R);return R;
+}
+function pickIntent(R){
+ let k=R.k;if(k==="leg")k=["sus","mae","cao","not"][rnd(4)];
+ R.sub=k;let kind=Math.random()<.5?"bla":"pos";
+ if(k==="cao"&&R.turn%3===2)kind="fur";
+ R.intent=kind;R.hid=(k==="sus"&&Math.random()<.45);
+ R.lie=(!R.hid&&R.fe/R.feMax<.35&&Math.random()<.4)?(kind==="pos"?"bla":"pos"):null;
+}
+function canFinal(R){return R.ok&&R.hp<=R.max*.5&&R.vo>=4}
+function can(R,a){
+ if(R.over)return false;
+ if(a==="orar")return true;
+ if(a==="agua")return R.water>0;
+ if(a==="cruz")return R.vo>=1&&R.cd===0;
+ if(a==="rit")return R.vo>=2;
+ if(a==="fim")return canFinal(R);
+ return false;
+}
+function playerAct(R,a,m){
+ let dmg=0,t="";
+ if(a!=="rit")R.ritu=0;
+ if(a==="orar"){R.fe=Math.min(R.feMax,R.fe+4);R.vo=Math.min(R.voMax,R.vo+1);R.shield=6;t="Você reza. A chama se firma e um escudo de fé o cerca."}
+ if(a==="agua"){R.water--;dmg=Math.round(14*m);R.po=Math.max(0,R.po-3);t="A água benta chia na pele dele."}
+ if(a==="cruz"){R.vo--;R.stun=true;R.cd=2;dmg=4;t="O crucifixo o paralisa por um instante."}
+ if(a==="rit"){R.vo-=2;dmg=Math.round((8+3*R.ritu)*m);R.ritu++;t="Você lê o Rituale. As palavras pesam no ar."}
+ if(a==="fim"){R.vo-=4;dmg=Math.round(45*m);t="Você pronuncia o NOME. Ele grita com a própria voz."}
+ R.hp-=dmg;R.last=a;R.dmg=dmg;
+ if(R.hp<=0){R.hp=0;R.over="win"}
+ return t+(dmg?` (−${dmg} Domínio)`:"");
+}
+function enemyAct(R){
+ if(R.over)return "";
+ const c=R.ci,base=2+c,pu=Math.max(3,7+c-Math.floor(R.mercy/2));let t="";
+ if(R.stun){R.stun=false;t="Ele hesita, atordoado."}
+ else{
+  const hit=n=>{let d=n;const ab=Math.min(R.shield,d);d-=ab;R.shield-=ab;R.fe-=d;return d};
+  if(R.intent==="bla"){const d=hit(base);t=d?`A blasfêmia queima sua alma (−${d} Fé).`:"Você resiste à blasfêmia: o escudo absorve tudo."}
+  else if(R.intent==="fur"){const d=hit(base*2);t=d?`A fúria o atinge em cheio (−${d} Fé).`:"O escudo racha, mas segura a fúria."}
+  else{R.po+=pu;t=`Ele força o corpo do hospedeiro (+${pu}% Possessão).`}
+ }
+ let pass=2-(R.mercy>=3?1:0);R.po+=pass;
+ if(R.sub==="mae"){R.vo=Math.max(0,R.vo-1);t+=" A secura drena sua Vontade."}
+ if(R.sub==="not"&&R.last!=="orar"){R.po+=3;t+=" A dívida cresce."}
+ R.shield=0;R.turn++;R.cd=Math.max(0,R.cd-1);R.vo=Math.min(R.voMax,R.vo+1);
+ if(R.fe<=0){R.fe=0;R.over="lose"}
+ if(R.po>=100){R.po=100;R.over="lose"}
+ if(!R.over)pickIntent(R);
+ return t;
+}
+/* sinal da cruz: strokes = [[{x,y}...],[...]] ; sz = lado da área */
+function crossScore(strokes,sz){
+ if(strokes.length<2)return 0;
+ const inf=strokes.slice(0,2).map(s=>{
+  const a=s[0],b=s[s.length-1],dx=b.x-a.x,dy=b.y-a.y;let len=0;
+  for(let i=1;i<s.length;i++)len+=Math.hypot(s[i].x-s[i-1].x,s[i].y-s[i-1].y);
+  const xs=s.map(p=>p.x),ys=s.map(p=>p.y);
+  return{dx,dy,len,ch:Math.hypot(dx,dy),x0:Math.min(...xs),x1:Math.max(...xs),y0:Math.min(...ys),y1:Math.max(...ys)};
+ });
+ let v=inf[0],h=inf[1];
+ if(Math.abs(inf[1].dy)-Math.abs(inf[1].dx)>Math.abs(inf[0].dy)-Math.abs(inf[0].dx)){v=inf[1];h=inf[0]}
+ const angV=Math.atan2(Math.abs(v.dx),Math.abs(v.dy))*57.3,angH=Math.atan2(Math.abs(h.dy),Math.abs(h.dx))*57.3;
+ const sV=clamp(1-angV/35),sH=clamp(1-angH/35);
+ const st=clamp((((v.ch/Math.max(v.len,1))+(h.ch/Math.max(h.len,1)))/2-.75)/.25);
+ const sz2=clamp(Math.min(v.len,h.len)/(sz*.4));
+ const vcx=(v.x0+v.x1)/2,hcy=(h.y0+h.y1)/2;
+ const r=(hcy-v.y0)/Math.max(v.y1-v.y0,1),sPos=clamp(1-Math.abs(r-.38)/.45);
+ const hx=(vcx-h.x0)/Math.max(h.x1-h.x0,1),sCov=clamp(1-Math.abs(hx-.5)/.5);
+ return Math.round(100*(.25*sV+.25*sH+.15*st+.15*sz2+.1*sPos+.1*sCov));
+}
+</script>
+
+<script id="game">
+/* ===== ESTADO / OPÇÕES ===== */
+const $=s=>document.querySelector(s);
+let ST={vol:.8,vib:true,subs:true,calm:false,btn:false,cb:false};
+let S={ch:0,def:[],saved:0,mercy:0,fx:0};
+let G={found:{},choices:{},pick:null,mode:"title",rite:null};
+const KEY="exorcismus_v1";
+function save(){try{localStorage.setItem(KEY,JSON.stringify({S,ST}))}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){if(d.ST)Object.assign(ST,d.ST);return d.S||null}}catch(e){}return null}
+function vib(p){if(ST.vib&&navigator.vibrate){try{navigator.vibrate(p)}catch(e){}}}
+
+/* ===== ÁUDIO: trilha caótica gerada ao vivo ===== */
+const A={ctx:null,fear:.25,beat:0,cl:0};
+function cap(t){if(!ST.subs)return;const n=Date.now();if(n-A.cl<1400)return;A.cl=n;const e=$("#cap");e.textContent="["+t+"]";e.style.opacity=1;setTimeout(()=>e.style.opacity=0,1300)}
+function au(){
+ if(A.ctx){if(A.ctx.state==="suspended")A.ctx.resume();return A.ctx}
+ try{
+  const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;
+  const c=new C();A.ctx=c;
+  A.m=c.createGain();A.m.gain.value=ST.vol;
+  const comp=c.createDynamicsCompressor();A.m.connect(comp);comp.connect(c.destination);
+  A.fx=c.createGain();A.fx.gain.value=.4;
+  const dl=c.createDelay(1);dl.delayTime.value=.43;const fb=c.createGain();fb.gain.value=.55;
+  const lp=c.createBiquadFilter();lp.type="lowpass";lp.frequency.value=1600;
+  A.fx.connect(dl);dl.connect(lp);lp.connect(fb);fb.connect(dl);lp.connect(A.m);
+  const len=c.sampleRate*2,nb=c.createBuffer(1,len,c.sampleRate),d=nb.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=Math.random()*2-1;A.nb=nb;
+  A.dr=[55,58.3,82.4,116.5].map(f=>{
+   const o=c.createOscillator();o.type="sawtooth";o.frequency.value=f;
+   const g=c.createGain();g.gain.value=.03;const fl=c.createBiquadFilter();fl.type="lowpass";fl.frequency.value=240;
+   o.connect(fl);fl.connect(g);g.connect(A.m);o.start();return{o,fl,f};});
+  setInterval(tick,230);hb();
+ }catch(e){A.ctx=null}
+ return A.ctx;
+}
+function vol(){if(A.m)A.m.gain.setTargetAtTime(ST.vol,A.ctx.currentTime,.05)}
+function pan(n,p){const c=A.ctx;let o=n;if(c.createStereoPanner){const s=c.createStereoPanner();s.pan.value=p;n.connect(s);o=s}o.connect(A.m);const w=c.createGain();w.gain.value=.5;o.connect(w);w.connect(A.fx)}
+function tone(type,f0,f1,dur,v,p,att){
+ const c=A.ctx,t=c.currentTime,o=c.createOscillator(),g=c.createGain();
+ o.type=type;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);
+ g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+(att||.02));g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+ o.connect(g);pan(g,p||0);o.start(t);o.stop(t+dur+.05);
+}
+function noise(dur,v,type,f0,f1,q,p,trem){
+ const c=A.ctx,t=c.currentTime,s=c.createBufferSource();s.buffer=A.nb;s.loop=true;
+ const f=c.createBiquadFilter();f.type=type;f.Q.value=q||1;f.frequency.setValueAtTime(f0,t);f.frequency.exponentialRampToValueAtTime(f1,t+dur);
+ const g=c.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+dur*.3);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+ s.connect(f);f.connect(g);
+ if(trem){const l=c.createOscillator(),lg=c.createGain();l.frequency.value=trem;lg.gain.value=v*.8;l.connect(lg);lg.connect(g.gain);l.start(t);l.stop(t+dur)}
+ pan(g,p||0);s.start(t,Math.random());s.stop(t+dur+.05);
+}
+function bell(){const c=A.ctx,t=c.currentTime,f=rnd(300)+180,o=c.createOscillator(),m=c.createOscillator(),mg=c.createGain(),g=c.createGain();
+ o.frequency.value=f;m.frequency.value=f*1.4142;mg.gain.setValueAtTime(f*3,t);mg.gain.exponentialRampToValueAtTime(1,t+2.5);
+ m.connect(mg);mg.connect(o.frequency);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.12,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+3);
+ o.connect(g);pan(g,Math.random()*2-1);o.start(t);m.start(t);o.stop(t+3.1);m.stop(t+3.1)}
+function box(){const base=[659,622,698,587][rnd(4)];for(let i=0;i<3+rnd(3);i++){setTimeout(()=>{if(A.ctx)tone("triangle",base*(1+(Math.random()-.5)*.03)*(Math.random()<.3?1.0595:1),base*.99,.7,.05,Math.random()*2-1)},i*(220+rnd(120)))}}
+function thump(){const c=A.ctx;tone("sine",70,32,.22,.5,0,.005)}
+function hb(){if(A.ctx&&A.beat>0&&ST.vol>0){thump();setTimeout(()=>A.ctx&&thump(),190)}setTimeout(hb,A.beat>0?60000/A.beat:600)}
+function tick(){
+ if(!A.ctx||ST.vol===0)return;
+ const f=A.fear,c=A.ctx,r=()=>Math.random();
+ A.dr.forEach(x=>{x.o.frequency.setTargetAtTime(x.f*(1+(r()-.5)*.05*(1+f*2)),c.currentTime,1.5);x.fl.frequency.setTargetAtTime(180+f*900+r()*250,c.currentTime,1)});
+ if(r()<.05+.2*f){const b=900+rnd(2400);tone(r()<.5?"sawtooth":"sine",b,b*.4,.5+r()*1.2,.03+.05*f,r()*2-1,.05);if(r()<.6)tone("sine",b*(r()<.5?1.0595:1.414),b*.4,.8,.03,r()*2-1,.05);cap("ruído estridente")}
+ if(r()<.03+.12*f)noise(.08+r()*.2,.15,"highpass",2000+rnd(3000),6000,1,r()*2-1);
+ if(r()<.06+.1*f){noise(1+r(),.12,"bandpass",1500+rnd(2000),2500+rnd(1500),9,r()*2-1,6+rnd(6));cap("sussurros ao fundo")}
+ if(r()<.025+.06*f){bell();cap("sino distante")}
+ if(r()<.015+.03*f)box();
+ if(r()<.02+.05*f){noise(2.2,.1,"bandpass",300,4000,3,r()*2-1)}
+ if(r()<.03*f)tone("sawtooth",50+rnd(60),20,1.6,.18,0,.4);
+}
+function sfx(n){
+ if(!au()||ST.vol===0)return;
+ if(n==="click")tone("square",1300,700,.05,.05,0);
+ if(n==="holy"){[220,277,330,440].forEach((f,i)=>tone("triangle",f,f*1.004,1.6,.07,(i-1.5)/3,.2))}
+ if(n==="hit"){tone("sine",120,30,.3,.5,0,.005);noise(.25,.25,"lowpass",2000,200,1,0)}
+ if(n==="fire"){noise(.7,.18,"highpass",3000,9000,1,0)}
+ if(n==="scare"){noise(.5,.8,"bandpass",1200,5000,2,0);tone("sawtooth",300,2400,.5,.35,0,.01);tone("sawtooth",310,2600,.5,.3,0,.01);tone("sine",50,25,.8,.6,0,.01)}
+ if(n==="win"){[196,247,294,392,494].forEach((f,i)=>setTimeout(()=>tone("triangle",f,f,2.2,.08,0,.3),i*160))}
+ if(n==="lose"){tone("sawtooth",200,30,2.5,.3,0,.05);noise(2,.3,"lowpass",800,60,1,0)}
+}
+
+/* ===== GRÁFICOS ===== */
+const cv=$("#cv"),x=cv.getContext("2d");
+const Rc=(a,b,w,h,c)=>{x.fillStyle=c;x.fillRect(Math.round(a),Math.round(b),Math.round(w),Math.round(h))};
+const disc=(cx,cy,r,c)=>{for(let y=-r;y<=r;y++){const w=Math.floor(Math.sqrt(r*r-y*y));Rc(cx-w,cy+y,2*w+1,1,c)}};
+const hex=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+const mix=(a,b,k)=>{const p=hex(a),q=hex(b);return`rgb(${p.map((v,i)=>Math.round(v+(q[i]-v)*k)).join(",")})`};
+let T=0,mouse={x:60,y:70,tx:60,ty:70},eyes=[],SC=null,flash=0,shake=0;
+const SKY=[["#04050f","#1a1030"],["#05070f","#14202e"],["#0a0608","#2a1410"],["#04060c","#1b1a2e"],["#050408","#120a14"]];
+function bg(ci){
+ const[a,b]=SKY[ci];for(let y=0;y<88;y+=2)Rc(0,y,160,2,mix(a,b,y/88));
+ if(ci<4){disc(124,20,9,ci===3?"#a8b4d8":ci===2?"#c86a3a":"#c9cfe6");disc(124,20,13,"rgba(200,210,255,.07)")}
+ const fl=Math.sin(T*9)*.5+Math.sin(T*23)*.5;
+ if(ci===0){[[4,26,30],[36,30,38],[74,24,26],[104,28,34],[136,24,30]].forEach(([a,w,h],i)=>{
+   Rc(a,88-h,w,h,"#0a0c16");for(let r=0;r<10;r++)Rc(a-2+r,88-h-10+r,w+4-2*r,1,"#070912");
+   Rc(a+5,88-h+8,5,6,(i===1&&fl>-.3)?"#e0b252":"#141829");Rc(a+w-10,88-h+8,5,6,i===3?"#c8962f":"#141829")})}
+ if(ci===1){Rc(14,34,132,54,"#0a0c17");for(let i=0;i<6;i++){const wx=24+i*20;Rc(wx,48,8,14,"#141829");Rc(wx+1,46,6,2,"#141829");if(i===3&&fl>0)Rc(wx,48,8,14,"#9aa9c8")}
+   Rc(77,18,5,14,"#8a1c2b");Rc(73,22,13,5,"#8a1c2b");Rc(70,66,20,22,"#05060c")}
+ if(ci===2){for(let r=0;r<64;r++)Rc(80-r*1.15,22+r,r*2.3,1,"#120c0c");Rc(62,62,36,26,"#02030a");Rc(60,58,4,30,"#2a1a10");Rc(96,58,4,30,"#2a1a10");Rc(57,56,46,4,"#2a1a10");
+   disc(70,72,3+(fl>0?1:0),"rgba(255,170,60,.35)");Rc(69,71,2,3,"#ffc060");for(let i=0;i<14;i++)Rc(i*12,90,8,1,"#3a2a22")}
+ if(ci===3){Rc(20,40,4,48,"#07080f");Rc(10,50,22,2,"#07080f");Rc(24,44,14,2,"#07080f");Rc(8,46,2,6,"#07080f");for(let i=0;i<27;i++)Rc(i*6,74,1,14,"#0b0d18");Rc(0,76,160,1,"#0b0d18");
+   [[46,72],[66,76],[90,74],[110,78],[134,72],[150,76]].forEach(([a,b],i)=>{if(i%2){Rc(a,b-12,2,16,"#0e1120");Rc(a-4,b-8,10,2,"#0e1120")}else{Rc(a-4,b-8,10,12,"#0e1120");Rc(a-3,b-10,8,2,"#0e1120")}})}
+ if(ci===4){Rc(0,0,160,88,"#0b0a10");for(let y=0;y<88;y+=8){Rc(0,y,160,1,"#171520");for(let a=(y/8%2)*6;a<160;a+=12)Rc(a,y,1,8,"#171520")}
+   [24,70,116].forEach(a=>{Rc(a,38,24,50,"#020208");disc(a+12,38,12,"#020208")});
+   [10,150].forEach(a=>{Rc(a,52,2,10,"#3a2a22");disc(a+1,49,3+(fl>0?1:0),"#ff9a2a");disc(a+1,49,1,"#ffe080")});
+   for(let i=0;i<18;i++)Rc(10+(i*37)%140,82+(i%3)*2,3,3,"#a9a398")}
+ Rc(0,88,160,32,ci===4?"#0a090d":"#080a12");for(let i=0;i<8;i++)Rc(0,90+i*4,160,1,"rgba(255,255,255,.025)");
+ x.globalAlpha=.08;for(let i=0;i<4;i++)Rc(((T*(4+i*3)+i*50)%210)-50,66+i*9,90,7,"#aab4d4");x.globalAlpha=1;
+}
+function padre(px,py,glow){
+ if(glow){x.globalAlpha=.35;disc(px,py-8,14,"#e0b252");x.globalAlpha=1}
+ Rc(px-3,py-14,7,14,"#07070b");Rc(px-3,py-1,2,2,"#07070b");Rc(px+1,py-1,2,2,"#07070b");Rc(px-2,py-19,5,5,"#c9b79a");Rc(px-1,py-14,3,1,"#e8e8e8");Rc(px,py-11,1,4,"#e0b252");Rc(px-1,py-10,3,1,"#e0b252");
+}
+function spawnEyes(f){if(eyes.length<2+f*6&&Math.random()<.02+f*.04)eyes.push({x:8+Math.random()*144,y:10+Math.random()*80,t:T,d:2+Math.random()*3})}
+function drawEyes(lx,ly,lit){
+ eyes=eyes.filter(e=>T-e.t<e.d);
+ eyes.forEach(e=>{if(lit&&Math.hypot(e.x-lx,e.y-ly)<30){e.t-=9;return}
+  const k=Math.min(1,(T-e.t)*2,(e.d-(T-e.t))*2),bl=Math.sin(T*3+e.x)>.92?0:1;
+  if(bl){x.globalAlpha=k;Rc(e.x-3,e.y,2,1,"#ff2a40");Rc(e.x+2,e.y,2,1,"#ff2a40");x.globalAlpha=1}});
+}
+function objDraw(o,found,ci){
+ const gx=o.x,gy=96;
+ if(o.k==="npc"){Rc(gx-3,gy-14,7,14,found?"#2a2c3a":"#3a3d52");disc(gx,gy-17,3,"#a99c86")}
+ else{Rc(gx-5,gy-6,11,6,"#2b2418");Rc(gx-5,gy-6,11,1,"#4a3c26")}
+ if(!found){const p=.5+.5*Math.sin(T*3+gx);x.globalAlpha=.25+.5*p;disc(gx,gy-26,2,"#e0b252");x.globalAlpha=1}
+}
+function drawDemon(k,cx,cy,hr,col){
+ const sw=Math.sin(T*1.7)*2,pul=Math.sin(T*5);
+ {const g=x.createRadialGradient(cx,cy+30,2,cx,cy+30,44);g.addColorStop(0,col+"55");g.addColorStop(1,col+"00");x.globalAlpha=.4+.6*hr;x.fillStyle=g;x.fillRect(cx-50,cy-16,100,100);x.globalAlpha=1}
+ if(k==="sus"){for(let r=0;r<48;r++){const w=6+Math.floor(r*.75);Rc(cx-w/2+sw*(r/48),cy+r,w,1,"#04050b");Rc(cx-w/2+sw*(r/48),cy+r,1,1,"#4a6fc0");Rc(cx+w/2+sw*(r/48),cy+r,1,1,"#4a6fc0")}
+  const b=Math.sin(T*2)>.95?0:1;if(b){Rc(cx-6+sw*.3,cy+14,3,2,"#cfe0ff");Rc(cx+3+sw*.3,cy+14,3,2,"#cfe0ff")}
+  const sd=Math.floor(T*4);for(let i=0;i<7;i++){const mx=cx-12+((sd*13+i*17)%25),my=cy+22+((sd*7+i*11)%24);Rc(mx,my,3,1,"#7aa6ff")}}
+ if(k==="mae"){for(let r=0;r<52;r++){const w=10+Math.floor(r*.9);Rc(cx-w/2+sw*(r/52),cy+r,w,1,"#27262b");Rc(cx-w/2+sw*(r/52),cy+r,1,1,"#9a968c");Rc(cx+w/2+sw*(r/52),cy+r,1,1,"#9a968c")}
+  Rc(cx-30,cy+22+pul,18,2,"#27262b");Rc(cx+13,cy+22-pul,18,2,"#27262b");Rc(cx-32,cy+24+pul,2,6,"#9a968c");Rc(cx+30,cy+24-pul,2,6,"#9a968c");
+  Rc(cx-5+sw*.3,cy+12,3,4,"#000");Rc(cx+3+sw*.3,cy+12,3,4,"#000");Rc(cx-2,cy+20,4,3,"#000");
+  for(let i=0;i<18;i++){const ax=cx-30+((i*29+T*6*(1+i%3))%60),ay=cy+((i*19+T*14)%60);Rc(ax,ay,1,1,"#b9b3a8")}}
+ if(k==="cao"){Rc(cx-26,cy+22,46,20,"#190c07");Rc(cx+14,cy+10,20,18,"#190c07");Rc(cx+30,cy+17,12,8,"#190c07");Rc(cx+16,cy+4,3,7,"#190c07");Rc(cx+28,cy+4,3,7,"#190c07");
+  Rc(cx-24,cy+40,5,14,"#190c07");Rc(cx-8,cy+40,5,14,"#190c07");Rc(cx+8,cy+40,5,14,"#190c07");Rc(cx+28,cy+40,5,14,"#190c07");
+  for(let i=0;i<6;i++)Rc(cx-22+i*7,cy+20,2,3,"#b5441c");
+  Rc(cx+22,cy+14,3,2,"#ff7a2a");Rc(cx+28,cy+14,3,2,"#ff7a2a");for(let i=0;i<5;i++)Rc(cx+32+i*2,cy+24,1,3,"#e8e0d0")}
+ if(k==="not"){Rc(cx-6,cy+12,12,50,"#0b0b10");Rc(cx-12,cy+14,24,2,"#0b0b10");Rc(cx-9,cy+6,18,3,"#0b0b10");Rc(cx-6,cy-6,12,12,"#0b0b10");
+  Rc(cx-3,cy+10,2,2,"#ff2a40");Rc(cx+2,cy+10,2,2,"#ff2a40");Rc(cx-2,cy+14,5,1,"#ff2a40");
+  Rc(cx+12,cy+26+pul,5,20,"#d9c8a0");Rc(cx+10,cy+24+pul,9,2,"#b8a77c");Rc(cx-18,cy+30,10,1,"#d6b24a");Rc(cx-18,cy+31,1,8,"#d6b24a")}
+ if(k==="leg"){for(let i=0;i<16;i++){const a=i*2.4+T*.4,rr=12+(i%4)*5,px=cx+Math.cos(a)*rr*1.3,py=cy+26+Math.sin(a*1.3+T*.3)*rr;disc(px,py,6+(i%3)*2,"#1a0610")}
+  for(let i=0;i<14;i++){const a=i*3.7+T*.3,px=cx+Math.cos(a)*24,py=cy+26+Math.sin(a*1.7)*20,bl=Math.sin(T*2+i)>.9?0:1;if(bl){Rc(px-2,py,2,2,"#ff4057");Rc(px+2,py,2,2,"#ff4057")}}
+  Rc(cx-8,cy+22,16,2,"#ff4057")}
+}
+function drawRite(r){
+ bg(r.ci);const d=DEM[r.k];
+ const ox=shake>0?(Math.random()-.5)*5:0;x.save();x.translate(ox,0);
+ drawDemon(r.k,80,10,r.hp/r.max,d.c);
+ const lv=r.po>60?(r.po-60)/5:0,hc=mix("#c9b79a","#8a1c2b",r.po/100);
+ Rc(14,94-lv,16,4,hc);disc(12,92-lv,3,hc);
+ padre(134,98,flash>0);
+ x.restore();
+ if(flash>0){x.globalAlpha=Math.min(.5,flash);Rc(0,0,160,120,"#fff");x.globalAlpha=1}
+ const lowf=r.fe/r.feMax;
+ if(lowf<.4){x.globalAlpha=(.4-lowf);Rc(0,0,160,120,"#6a0a18");x.globalAlpha=1}
+}
+function drawScare(){
+ x.fillStyle="#000";x.fillRect(0,0,160,120);const j=(Math.random()-.5)*6;
+ Rc(20+j,40,120,50,"#150005");Rc(34+j,50,28,12,"#fff");Rc(98+j,50,28,12,"#fff");Rc(44+j,54,8,8,"#c00");Rc(108+j,54,8,8,"#c00");
+ for(let i=0;i<10;i++){Rc(32+i*10+j,78,6,12,"#e8e0d0")}Rc(30+j,76,100,3,"#000");
+ x.globalAlpha=.4;Rc(0,0,160,120,"#a00");x.globalAlpha=1;
+}
+function drawTitle(){
+ for(let y=0;y<120;y+=2)Rc(0,y,160,2,mix("#04050f","#2a1030",y/120));
+ disc(118,26,14,"#d8dcf0");disc(118,26,22,"rgba(220,225,255,.08)");
+ Rc(0,96,160,24,"#05060c");
+ Rc(56,56,48,50,"#07080f");for(let r=0;r<22;r++)Rc(60+r*.9,34+r,40-r*1.8,1,"#07080f");Rc(79,12,2,26,"#07080f");Rc(74,17,12,2,"#07080f");
+ Rc(70,62,8,16,"#e0b252");Rc(82,62,8,16,"#141829");Rc(76,90,8,16,"#02030a");
+ [[10,86,22],[30,92,16],[130,84,24],[148,90,14]].forEach(([a,b,h])=>{Rc(a,b-h,3,h,"#07080f");Rc(a-5,b-h+5,13,3,"#07080f")});
+ x.globalAlpha=.09;for(let i=0;i<4;i++)Rc(((T*(5+i*3)+i*60)%220)-60,70+i*8,100,8,"#aab4d4");x.globalAlpha=1;
+}
+function frame(ts){
+ const dt=Math.min(.05,(ts-(frame.l||ts))/1000);frame.l=ts;T+=dt;
+ mouse.x+=(mouse.tx-mouse.x)*Math.min(1,dt*8);mouse.y+=(mouse.ty-mouse.y)*Math.min(1,dt*8);
+ if(flash>0)flash-=dt;if(shake>0)shake-=dt;
+ let F=.25;
+ if(G.mode==="rite"&&G.rite){const r=G.rite;F=.45+r.po/100*.4+(1-r.fe/r.feMax)*.25;
+  A.beat=(r.fe/r.feMax<.4||r.po>70)?70+(1-r.fe/r.feMax)*60:0}
+ else if(G.mode==="explore"){F=.3+Object.keys(G.found).length*.08;A.beat=0}
+ else A.beat=0;
+ A.fear=clamp(F);document.documentElement.style.setProperty("--f",A.fear.toFixed(2));
+ if(SC){SC.t-=dt;drawScare();if(SC.t<=0)SC=null}
+ else if(G.mode==="rite"&&G.rite)drawRite(G.rite);
+ else if(G.mode==="explore"||G.mode==="diary"){
+  const ci=S.ch;bg(ci);CASES[ci].objs.forEach(o=>objDraw(o,G.found[o.n],ci));padre(10,98,false);
+  const fl=1+Math.sin(T*13)*.04+Math.sin(T*31)*.03,rad=(G.mode==="diary"?34:44)*fl;
+  spawnEyes(A.fear);
+  const g=x.createRadialGradient(mouse.x,mouse.y,4,mouse.x,mouse.y,rad);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(.55,"rgba(0,0,0,.55)");g.addColorStop(1,"rgba(0,0,0,.95)");
+  x.fillStyle=g;x.fillRect(0,0,160,120);
+  x.globalAlpha=.12;disc(mouse.x,mouse.y,Math.round(rad*.5),"#ffb050");x.globalAlpha=1;
+  drawEyes(mouse.x,mouse.y,true);
+ }else{drawTitle();spawnEyes(.5);drawEyes(0,0,false)}
+ if(A.fear>.55&&!ST.calm&&Math.random()<.03){const yy=rnd(110),hh=2+rnd(8),dx=(Math.random()-.5)*10;x.drawImage(cv,0,yy,160,hh,dx,yy,160,hh)}
+ requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+function scare(){
+ if(ST.calm){flash=.3;return}
+ sfx("scare");vib([80,40,120]);cap("grito agudo");SC={t:.28};$("#app").classList.remove("shake");void $("#app").offsetWidth;$("#app").classList.add("shake");
+}
+let scareT=null;
+function armScare(){clearTimeout(scareT);if(ST.calm)return;scareT=setTimeout(()=>{if(G.mode==="explore"){scare();}},16000+rnd(16000))}
+
+/* ===== TELAS ===== */
+const ui=$("#ui");
+function title(){
+ G.mode="title";clearTimeout(scareT);const sv=load();
+ ui.innerHTML=`<h1>Exorcismus</h1><p class="sub">RPG de terror gótico · Santa Clara do Ermo, 1962</p>
+ <button class="b" onclick="newGame()">NOVO JOGO</button>
+ ${sv?`<button class="b g" onclick="cont()">CONTINUAR (Caso ${["I","II","III","IV","V"][sv.ch]})</button>`:""}
+ <button class="b g" onclick="openOpts()">OPÇÕES</button>
+ <p class="sub" style="margin-top:12px">Use fones de ouvido, no escuro. Toque em “Novo jogo” para ligar o som.</p>`;
+}
+function newGame(){au();sfx("click");S={ch:0,def:[],saved:0,mercy:0,fx:0};save();
+ G.mode="title";ui.innerHTML=`<h2>Prólogo</h2><div class="box"><p>Minas Gerais, 1962. O velho Padre Benedito, exorcista de Santa Clara do Ermo, foi encontrado morto, e ninguém quer explicar como.</p><p>Você, Padre Tomás Aurélio, 28 anos, chega para substituí-lo. Na primeira noite, a sineta da igreja toca sozinha.</p><p>Você não tem arma nenhuma. Só a fé, e ela anda curta.</p></div><button class="b" onclick="startCase()">ENTRAR NA VILA</button>`}
+function cont(){au();const s=load();if(s){S=s;startCase()}}
+function startCase(){
+ sfx("click");au();G.found={};G.choices={};G.pick=null;G.rite=null;G.mode="explore";mouse.tx=60;mouse.ty=70;eyes=[];armScare();save();exploreUI();
+}
+function nFound(){return Object.keys(G.found).length}
+function exploreUI(msg){
+ const c=CASES[S.ch];
+ ui.innerHTML=`<h2>${c.t}</h2>
+ <div class="box">${msg||`<p>${c.intro}</p><p style="color:#8c91ad;font-size:12px">Arraste o dedo (ou o mouse) sobre a cena para mover a luz da vela. Os pontos dourados são sinais. Toque neles.</p>`}</div>
+ <div class="sub">Sinais encontrados: ${nFound()}/${c.objs.length}</div>
+ ${c.objs.map((o,i)=>`<button class="b g" onclick="examine(${i})">${G.found[o.n]?"✔ ":""}${o.k==="npc"?"Falar com":"Examinar"}: ${o.n}</button>`).join("")}
+ <button class="b" onclick="diary()" ${nFound()<2?"disabled":""}>ABRIR O DIÁRIO ${nFound()<2?"(ache 2 sinais)":""}</button>`;
+}
+function examine(i){
+ sfx("click");const c=CASES[S.ch],o=c.objs[i];
+ G.found[o.n]=true;mouse.tx=o.x;mouse.ty=88;
+ if(o.k==="obj"&&Math.random()<.35){const m=Math.random()<.5;cap("algo se move")}
+ let h=`<p><b>${o.n}</b></p><p>${o.tx}</p><div class="cl">📖 Sinal anotado: ${o.cl}</div>`;
+ if(o.ch&&G.choices[o.n]==null){
+  h+=`<p style="margin-top:8px"><i>${o.ch.q}</i></p>`+o.ch.o.map((q,j)=>`<button class="b g" onclick="choose(${i},${j})">${q.t}</button>`).join("");
+  exploreUI(h);ui.querySelectorAll(".b").forEach(b=>{if(!b.textContent.match(/Abrir|ABRIR/)&&b.onclick&&b.getAttribute("onclick").startsWith("examine"))b.disabled=true});return;
+ }
+ exploreUI(h);
+}
+function choose(i,j){
+ const o=CASES[S.ch].objs[i],q=o.ch.o[j];sfx("click");G.choices[o.n]=j;S.mercy+=q.m;save();
+ exploreUI(`<p><b>${o.n}</b></p><p>${q.r}</p>`);
+}
+function diary(){
+ sfx("click");G.mode="diary";const c=CASES[S.ch];
+ ui.innerHTML=`<div class="box pap"><h2>DIÁRIO DO PADRE TOMÁS</h2><p><b>Hospedeiro:</b> ${c.host}</p>
+ ${c.objs.filter(o=>G.found[o.n]).map(o=>`<div class="cl" style="border-color:#6b1020">${o.cl}</div>`).join("")}
+ <p style="margin-top:10px"><b>Qual é o verdadeiro nome do demônio?</b> Os já exorcizados não voltam. Errar o nome o deixa mais forte e bloqueia o Rito Final.</p>
+ ${Object.keys(DEM).map(k=>{const dead=S.def.includes(k);return`<div class="dem ${dead?"off":""} ${G.pick===k?"on":""}" ${dead?"":`onclick="pick('${k}')"`}><b>${DEM[k].n}${dead?" (exorcizado)":""}</b><small>${DEM[k].d}</small></div>`}).join("")}
+ </div>
+ <button class="b" onclick="startRite()" ${G.pick?"":"disabled"}>INICIAR O RITO</button>
+ <button class="b g" onclick="G.mode='explore';exploreUI()">VOLTAR À INVESTIGAÇÃO</button>`;
+}
+function pick(k){sfx("click");G.pick=k;diary()}
+function feMax(){return 14+2*S.saved}
+function startRite(){
+ sfx("holy");G.mode="rite";clearTimeout(scareT);
+ G.rite=newRite(S.ch,G.pick===CASES[S.ch].id,S.mercy,feMax());G.rite.warned=false;
+ riteUI(`O ar fica pesado. <b>${DEM[G.pick].n}</b> ${G.pick===CASES[S.ch].id?"reconhece o seu olhar.":"ri: o nome estava errado."}`);
+}
+const bar=(l,v,m,c)=>`<div class="bar"><span>${l}</span><i><b style="width:${clamp(v/m)*100}%;background:${c}"></b></i><em>${Math.round(v)}/${m}</em></div>`;
+function riteUI(log){
+ const r=G.rite,d=DEM[r.k];
+ const shown=r.hid?"…a voz embaralha as intenções dele…":LBL[r.lie||r.intent]+(r.lie?" (?)":"");
+ const b=(a,l,s)=>`<button class="b ${a==="fim"?"":"g"}" ${can(r,a)?"":"disabled"} onclick="act('${a}')">${l}<br><small style="font-weight:400">${s}</small></button>`;
+ ui.innerHTML=`<h2>${CASES[r.ci].t.split("·")[1]} · ${d.n}</h2>
+ ${bar("Fé",r.fe,r.feMax,"#e0b252")}${bar("Vontade",r.vo,r.voMax,"#5d8be0")}${bar("Domínio",r.hp,r.max,"#c0243c")}${bar("Possessão",r.po,100,"#8a3ad0")}
+ <div class="int ${r.fe/r.feMax<.35?"gl":""}">${shown}</div>
+ <div class="log">${log||""}</div>
+ <div class="row"><div style="flex:1">${b("orar","🙏 Orar","+Fé, escudo")}${b("cruz","✝ Crucifixo","atordoa · −1 Vont")}</div><div style="flex:1">${b("agua","💧 Água benta","dano · "+r.water+" restantes")}${b("rit","📖 Rituale","dano crescente · −2 Vont")}</div></div>
+ <button class="b" ${can(r,"fim")?"":"disabled"} onclick="act('fim')">☩ RITO FINAL <small style="font-weight:400">${!r.ok?"(nome errado: bloqueado)":r.hp>r.max*.5?"(enfraqueça-o abaixo de 50%)":"−4 Vont"}</small></button>`;
+}
+const DMG={agua:1,rit:1,fim:1};
+function act(a){
+ const r=G.rite;if(!can(r,a))return;sfx("click");
+ if(DMG[a]){
+  if(ST.btn){resolve(a,1.25,75)}else crossUI(acc=>resolve(a,.5+acc/100,acc));
+ }else resolve(a,1);
+}
+function resolve(a,m,acc){
+ const r=G.rite;
+ const t1=playerAct(r,a,m)+(acc!=null?` Precisão da cruz: ${acc}%.`:"");
+ if(a==="orar")sfx("holy");else if(a==="agua")sfx("fire");else sfx("hit");
+ flash=.35;vib(40);
+ if(r.over==="win")return endRite(t1);
+ const t2=enemyAct(r);
+ if(r.intent==="fur"||/pesad|FÚRIA|atinge/.test(t2)){shake=.4}
+ if(/Fé\)/.test(t2)){sfx("hit");vib(80);shake=.3}
+ if(r.over==="lose")return endRite(t1+" "+t2);
+ if(!r.warned&&r.fe/r.feMax<.3){r.warned=true;if(!ST.calm)scare();cap("batimentos")}
+ riteUI(t1+"<br>"+t2);
+}
+function endRite(last){
+ const r=G.rite;G.mode="rite";
+ if(r.over==="win"){
+  const saved=r.po<70;if(saved)S.saved++;S.def.push(r.k);save();sfx("win");
+  const c=CASES[S.ch],end=S.ch===4;
+  ui.innerHTML=`<h2>O nome foi dito. ${DEM[r.k].n} se desfaz.</h2><div class="box"><p>${last}</p><p>${saved?`<b>${c.host.split(",")[0]} foi salvo(a).</b> A gratidão fortalece sua fé (+2 Fé máx).`:`<b>${c.host.split(",")[0]} sobrevive, mas marcado(a).</b> A possessão foi longe demais.`}</p></div>
+  <div class="box pap"><h2>Página do diário recuperada</h2><p><i>${c.page}</i></p></div>
+  <button class="b" onclick="${end?"ending()":"nextCase()"}">${end?"O AMANHECER":"SEGUIR PARA O PRÓXIMO CASO"}</button>`;
+ }else{
+  sfx("lose");const why=r.fe<=0?"Sua Fé se apagou.":"O hospedeiro foi tomado por completo.";
+  ui.innerHTML=`<h2 class="gl">O exorcismo falhou.</h2><div class="box"><p>${last}</p><p><b>${why}</b></p></div>
+  <button class="b" onclick="retry()">TENTAR O RITO DE NOVO</button><button class="b g" onclick="G.mode='explore';diary()">REVISAR O DIÁRIO E O NOME</button>`;
+ }
+}
+function retry(){startRite()}
+function nextCase(){S.ch++;save();startCase()}
+function ending(){
+ sfx("holy");G.mode="title";
+ const sv=S.saved,m=S.mercy;let t,txt;
+ if(sv>=4&&m>=3){t="Redenção";txt="O pacto se rompe com a verdade, não com a força. Santa Clara do Ermo amanhece sem neblina. Pela primeira vez, a sineta toca porque alguém a puxou. Tomás finalmente acredita.";}
+ else if(sv>=2){t="Cicatrizes";txt="A vila está livre, mas lembra. Há marcas nas pessoas, e fios de cinza nas paredes da Matriz. Tomás fica. Alguém precisa vigiar o que ficou pelo caminho.";}
+ else{t="A dívida continua";txt="O sol nasce, e Tomás sorri aliviado. Então ouve, bem baixinho, atrás da própria orelha, uma voz amável que conhece o seu nome. Ele não grita. Ele cochicha.";}
+ ui.innerHTML=`<h1 style="font-size:34px">${t}</h1><div class="box"><p>${txt}</p><p style="color:#8c91ad">Salvos: ${sv}/5 · Compaixão: ${m}/5</p></div><button class="b" onclick="newGame()">JOGAR DE NOVO</button><button class="b g" onclick="title()">MENU</button>`;
+}
+
+/* ===== SINAL DA CRUZ ===== */
+function crossUI(cb){
+ const o=$("#cross");o.style.display="flex";
+ o.innerHTML=`<h2>Trace o sinal da cruz</h2><p class="sub">Um traço de cima para baixo e outro da esquerda para a direita. Quanto mais certo, maior o dano.</p><canvas id="cc" width="320" height="320"></canvas><div id="ca" class="sub" style="height:22px;margin-top:8px"></div><div class="row" style="width:min(80vw,320px)"><button class="b g" id="cl">Limpar</button><button class="b g" id="cb2">Usar botão (75%)</button></div>`;
+ const c=$("#cc"),g=c.getContext("2d");let strokes=[],cur=null,done=false;
+ const redraw=()=>{g.clearRect(0,0,320,320);g.strokeStyle="#e0b252";g.shadowColor="#e0b252";g.shadowBlur=12;g.lineWidth=5;g.lineCap="round";g.lineJoin="round";
+  strokes.concat(cur?[cur]:[]).forEach(s=>{g.beginPath();s.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));g.stroke()})};
+ const pt=e=>{const r=c.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*320,y:(e.clientY-r.top)/r.height*320}};
+ const finish=acc=>{done=true;$("#ca").textContent=`Precisão: ${acc}%`;setTimeout(()=>{o.style.display="none";cb(acc)},650)};
+ c.onpointerdown=e=>{if(done||strokes.length>=2)return;c.setPointerCapture(e.pointerId);cur=[pt(e)];redraw()};
+ c.onpointermove=e=>{if(cur){cur.push(pt(e));redraw()}};
+ c.onpointerup=()=>{if(!cur)return;if(cur.length>3)strokes.push(cur);cur=null;redraw();if(strokes.length===2)finish(crossScore(strokes,320))};
+ $("#cl").onclick=()=>{if(!done){strokes=[];cur=null;redraw()}};
+ $("#cb2").onclick=()=>{if(!done)finish(75)};
+}
+
+/* ===== OPÇÕES ===== */
+function openOpts(){
+ const o=$("#opt");o.style.display="flex";
+ const t=(k,l)=>`<label>${l}<input type="checkbox" ${ST[k]?"checked":""} onchange="ST['${k}']=this.checked;optApply()"></label>`;
+ o.innerHTML=`<h2>Opções</h2><label>Volume<input type="range" min="0" max="1" step=".05" value="${ST.vol}" oninput="ST.vol=+this.value;vol();optApply(1)"></label>
+ ${t("vib","Vibração")}${t("subs","Legendas de efeitos sonoros")}${t("calm","Reduzir sustos (sem flashes e jumpscares)")}${t("btn","Cruz por botão (sem gesto)")}${t("cb","Modo daltônico")}
+ <p class="sub" style="margin-top:10px">Idioma: Português (BR)</p><button class="b" onclick="$('#opt').style.display='none'">VOLTAR</button>`;
+}
+function optApply(q){document.body.classList.toggle("cb",ST.cb);if(!q)save()}
+optApply(1);
+title();
+window.__dbg={S,G,ST,examine,diary,pick,startRite,act,resolve,newGame,startCase};
+</script>
+</body>
+</html>
