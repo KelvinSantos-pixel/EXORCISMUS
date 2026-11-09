@@ -220,11 +220,19 @@ function vib(p){if(ST.vib&&navigator.vibrate){try{navigator.vibrate(p)}catch(e){
 /* ===== ÁUDIO: trilha caótica gerada ao vivo ===== */
 const A={ctx:null,fear:.25,beat:0,cl:0};
 function cap(t){if(!ST.subs)return;const n=Date.now();if(n-A.cl<1400)return;A.cl=n;const e=$("#cap");e.textContent="["+t+"]";e.style.opacity=1;setTimeout(()=>e.style.opacity=0,1300)}
+function silentWav(){const n=800,b=new Uint8Array(44+n),d=new DataView(b.buffer),w=(o,s)=>{for(let i=0;i<s.length;i++)b[o+i]=s.charCodeAt(i)};
+ w(0,"RIFF");d.setUint32(4,36+n,true);w(8,"WAVEfmt ");d.setUint32(16,16,true);d.setUint16(20,1,true);d.setUint16(22,1,true);d.setUint32(24,8000,true);d.setUint32(28,8000,true);d.setUint16(32,1,true);d.setUint16(34,8,true);w(36,"data");d.setUint32(40,n,true);b.fill(128,44);
+ return URL.createObjectURL(new Blob([b],{type:"audio/wav"}))}
+function unlock(){
+ try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}
+ try{if(!A.el){A.el=new Audio(silentWav());A.el.loop=true;A.el.volume=.01;A.el.setAttribute("playsinline","")}A.el.play().catch(()=>{})}catch(e){}
+}
 function au(){
- if(A.ctx){if(A.ctx.state==="suspended")A.ctx.resume();return A.ctx}
+ unlock();
+ if(A.ctx){if(A.ctx.state!=="running")A.ctx.resume();return A.ctx}
  try{
   const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;
-  const c=new C();A.ctx=c;
+  const c=new C();A.ctx=c;c.resume&&c.resume();try{const sb=c.createBuffer(1,1,22050),ss=c.createBufferSource();ss.buffer=sb;ss.connect(c.destination);ss.start(0)}catch(e){}
   A.m=c.createGain();A.m.gain.value=ST.vol;
   const comp=c.createDynamicsCompressor();A.m.connect(comp);comp.connect(c.destination);
   A.fx=c.createGain();A.fx.gain.value=.4;
@@ -420,7 +428,7 @@ function title(){
  <button class="b" onclick="newGame()">NOVO JOGO</button>
  ${sv?`<button class="b g" onclick="cont()">CONTINUAR (Caso ${["I","II","III","IV","V"][sv.ch]})</button>`:""}
  <button class="b g" onclick="openOpts()">OPÇÕES</button>
- <p class="sub" style="margin-top:12px">Use fones de ouvido, no escuro. Toque em “Novo jogo” para ligar o som.</p>`;
+ <p class="sub" style="margin-top:12px">Use fones de ouvido, no escuro. Toque em “Novo jogo” para ligar o som. No iPhone, desligue o modo silencioso (chavinha lateral) e aumente o volume.</p>`;
 }
 function newGame(){au();sfx("click");S={ch:0,def:[],saved:0,mercy:0,fx:0};save();
  G.mode="title";ui.innerHTML=`<h2>Prólogo</h2><div class="box"><p>Minas Gerais, 1962. O velho Padre Benedito, exorcista de Santa Clara do Ermo, foi encontrado morto, e ninguém quer explicar como.</p><p>Você, Padre Tomás Aurélio, 28 anos, chega para substituí-lo. Na primeira noite, a sineta da igreja toca sozinha.</p><p>Você não tem arma nenhuma. Só a fé, e ela anda curta.</p></div><button class="b" onclick="startCase()">ENTRAR NA VILA</button>`}
@@ -552,6 +560,8 @@ function openOpts(){
 }
 function optApply(q){document.body.classList.toggle("cb",ST.cb);if(!q)save()}
 optApply(1);
+["pointerdown","touchend","click"].forEach(ev=>document.addEventListener(ev,()=>{if(A.ctx&&A.ctx.state!=="running")au()},{passive:true}));
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&A.ctx&&A.ctx.state!=="running")A.ctx.resume()});
 title();
 window.__dbg={S,G,ST,examine,diary,pick,startRite,act,resolve,newGame,startCase};
 </script>
