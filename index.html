@@ -49,6 +49,8 @@ p{margin:0 0 8px;line-height:1.45;font-size:14px}
 #opt{justify-content:flex-start;align-items:stretch}
 #opt label{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #1c2038;font-size:14px}
 .gear{position:absolute;right:6px;top:6px;z-index:5;background:rgba(0,0,0,.55);border:1px solid #4a4f70;color:#b8bdd8;border-radius:5px;padding:3px 8px;font-size:15px;cursor:pointer}
+@keyframes sh2{0%,100%{transform:translate(0,0)}20%{transform:translate(-9px,5px) rotate(-.5deg)}40%{transform:translate(8px,-6px) rotate(.5deg)}60%{transform:translate(-7px,-5px)}80%{transform:translate(7px,6px) rotate(.3deg)}}
+.shake2{animation:sh2 .13s infinite}
 .cb .bar i b{filter:hue-rotate(160deg)}
 </style>
 </head>
@@ -126,37 +128,38 @@ const CASES=[
  {x:124,k:"obj",n:"O altar do pacto",tx:"O pacto original: cinco assinaturas e uma sexta, ilegível. A da própria vila inteira.",
   cl:"A dívida de toda a vila vem cobrar de uma vez."}]}
 ];
-const LBL={bla:"Blasfêmia: ataca sua Fé",pos:"Tenta possuir o hospedeiro",fur:"FÚRIA: golpe pesado"};
+const LBL={des:"Desespero: drena sua Vontade",bla:"Blasfêmia: ataca sua Fé",pos:"Tenta possuir o hospedeiro",fur:"FÚRIA: golpe pesado"};
 
 /* ===== LÓGICA DO RITO ===== */
 const rnd=n=>Math.floor(Math.random()*n);
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 function newRite(ci,ok,mercy,feMax){
  const hp=Math.round(DEM[CASES[ci].id].hp*(ok?1:1.25));
- const R={ci,k:CASES[ci].id,ok,hp,max:hp,fe:feMax,feMax,vo:4,voMax:6,po:0,water:3,stun:false,shield:0,ritu:0,cd:0,turn:0,last:"",mercy,over:null,log:[]};
+ const R={ci,k:CASES[ci].id,ok,hp,max:hp,fe:feMax,feMax,vo:5,voMax:8,po:0,water:3,stun:false,shield:0,ritu:0,cd:0,turn:0,last:"",mercy,over:null,log:[]};
  pickIntent(R);return R;
 }
 function pickIntent(R){
  let k=R.k;if(k==="leg")k=["sus","mae","cao","not"][rnd(4)];
  R.sub=k;let kind=Math.random()<.5?"bla":"pos";
+ if(R.ci>=1&&Math.random()<.15)kind="des";
  if(k==="cao"&&R.turn%3===2)kind="fur";
  R.intent=kind;R.hid=(k==="sus"&&Math.random()<.45);
  R.lie=(!R.hid&&R.fe/R.feMax<.35&&Math.random()<.4)?(kind==="pos"?"bla":"pos"):null;
 }
-function canFinal(R){return R.ok&&R.hp<=R.max*.5&&R.vo>=4}
+function canFinal(R){return R.ok&&R.hp<=R.max*.5&&R.vo>=5}
 function can(R,a){
  if(R.over)return false;
  if(a==="orar")return true;
  if(a==="agua")return R.water>0;
- if(a==="cruz")return R.vo>=1&&R.cd===0;
- if(a==="rit")return R.vo>=2;
+ if(a==="cruz")return R.vo>=2&&R.cd===0;
+ if(a==="rit")return R.vo>=3;
  if(a==="fim")return canFinal(R);
  return false;
 }
 function playerAct(R,a,m){
  let dmg=0,t="";
  if(a!=="rit")R.ritu=0;
- if(a==="orar"){R.fe=Math.min(R.feMax,R.fe+4);R.vo=Math.min(R.voMax,R.vo+1);R.shield=6;t="Você reza. A chama se firma e um escudo de fé o cerca."}
+ if(a==="orar"){R.fe=Math.min(R.feMax,R.fe+4);R.vo=Math.min(R.voMax,R.vo+2);R.shield=6;t="Você reza. A chama se firma e um escudo de fé o cerca."}
  if(a==="agua"){R.water--;dmg=Math.round(14*m);R.po=Math.max(0,R.po-3);t="A água benta chia na pele dele."}
  if(a==="cruz"){R.vo--;R.stun=true;R.cd=2;dmg=4;t="O crucifixo o paralisa por um instante."}
  if(a==="rit"){R.vo-=2;dmg=Math.round((8+3*R.ritu)*m);R.ritu++;t="Você lê o Rituale. As palavras pesam no ar."}
@@ -173,15 +176,17 @@ function enemyAct(R){
   const hit=n=>{let d=n;const ab=Math.min(R.shield,d);d-=ab;R.shield-=ab;R.fe-=d;return d};
   if(R.intent==="bla"){const d=hit(base);t=d?`A blasfêmia queima sua alma (−${d} Fé).`:"Você resiste à blasfêmia: o escudo absorve tudo."}
   else if(R.intent==="fur"){const d=hit(base*2);t=d?`A fúria o atinge em cheio (−${d} Fé).`:"O escudo racha, mas segura a fúria."}
+  else if(R.intent==="des"){R.vo-=2;t="O desespero esmaga a sua Vontade (−2)."}
   else{R.po+=pu;t=`Ele força o corpo do hospedeiro (+${pu}% Possessão).`}
  }
  let pass=2-(R.mercy>=3?1:0);R.po+=pass;
- if(R.sub==="mae"){R.vo=Math.max(0,R.vo-1);t+=" A secura drena sua Vontade."}
+ if(R.sub==="mae"&&R.vo>2){R.vo--;t+=" A secura drena sua Vontade."}
  if(R.sub==="not"&&R.last!=="orar"){R.po+=3;t+=" A dívida cresce."}
- R.shield=0;R.turn++;R.cd=Math.max(0,R.cd-1);R.vo=Math.min(R.voMax,R.vo+1);
- if(R.fe<=0){R.fe=0;R.over="lose"}
- if(R.po>=100){R.po=100;R.over="lose"}
- if(!R.over)pickIntent(R);
+ R.shield=0;R.turn++;R.cd=Math.max(0,R.cd-1);
+ if(R.po>=100){R.po=100;R.over="lose";R.why="po"}
+ else if(R.fe<=0){R.fe=0;R.over="lose";R.why="fe"}
+ else if(R.vo<=0){R.vo=0;R.over="lose";R.why="vo"}
+ if(!R.over){R.vo=Math.min(R.voMax,R.vo+1);pickIntent(R)}
  return t;
 }
 /* sinal da cruz: strokes = [[{x,y}...],[...]] ; sz = lado da área */
@@ -285,6 +290,18 @@ function bell(){const c=A.ctx,t=c.currentTime,f=rnd(300)+180,o=c.createOscillato
  m.connect(mg);mg.connect(o.frequency);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.12,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+3);
  o.connect(g);pan(g,Math.random()*2-1);o.start(t);m.start(t);o.stop(t+3.1);m.stop(t+3.1)}
 function box(){const base=[659,622,698,587][rnd(4)];for(let i=0;i<3+rnd(3);i++){setTimeout(()=>{if(A.ctx)tone("triangle",base*(1+(Math.random()-.5)*.03)*(Math.random()<.3?1.0595:1),base*.99,.7,.05,Math.random()*2-1)},i*(220+rnd(120)))}}
+function growl(v,dur){const c=A.ctx,t=c.currentTime,o=c.createOscillator(),o2=c.createOscillator(),g=c.createGain(),lf=c.createOscillator(),lg=c.createGain(),f=c.createBiquadFilter();
+ o.type="sawtooth";o2.type="square";o.frequency.setValueAtTime(95,t);o.frequency.exponentialRampToValueAtTime(52,t+dur);o2.frequency.setValueAtTime(47,t);o2.frequency.exponentialRampToValueAtTime(30,t+dur);
+ f.type="lowpass";f.frequency.value=520;lf.frequency.value=24;lg.gain.value=v*.5;lf.connect(lg);lg.connect(g.gain);
+ g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.08);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+ o.connect(f);o2.connect(f);f.connect(g);pan(g,0);[o,o2,lf].forEach(x=>{x.start(t);x.stop(t+dur+.05)});noise(dur*.8,v*.3,"bandpass",300,700,2,0)}
+function laugh(){[0,230,460,700].forEach(d=>setTimeout(()=>A.ctx&&tone("sawtooth",270-d*.12,140,.2,.2,0,.02),d));noise(1,.1,"bandpass",1200,2200,6,0,9)}
+function creak(){noise(1.3,.14,"bandpass",350,900,18,Math.random()*2-1,22)}
+function knock(){[0,260,520].forEach(d=>setTimeout(()=>A.ctx&&tone("sine",170,60,.12,.35,Math.random()-.5,.003),d))}
+function steps(){for(let i=0;i<4;i++)setTimeout(()=>A.ctx&&noise(.1,.18,"lowpass",420,120,1,(i%2?.4:-.4)),i*520)}
+function chain(){for(let i=0;i<5;i++)setTimeout(()=>A.ctx&&noise(.07,.12,"highpass",4500,9000,3,Math.random()*2-1),i*70+rnd(40))}
+function breath(){noise(2.6,.09,"bandpass",500,950,1.2,Math.random()*2-1)}
+function choirS(){[196,247,294,370].forEach((f,i)=>{tone("triangle",f,f*1.003,2.4,.05,(i-1.5)/3,.6);tone("sine",f*2,f*2,2.4,.02,0,.8)})}
 function thump(){const c=A.ctx;tone("sine",70,32,.22,.5,0,.005)}
 function hb(){if(A.ctx&&A.beat>0&&ST.vol>0){thump();setTimeout(()=>A.ctx&&thump(),190)}setTimeout(hb,A.beat>0?60000/A.beat:600)}
 function tick(){
@@ -297,12 +314,27 @@ function tick(){
  if(r()<.025+.06*f){bell();cap("sino distante")}
  if(r()<.012+.04*f){scream(.05+.06*f,1.2+r()*1.4,true);cap("grito distante")}
  if(r()<.015+.03*f)box();
+ if(r()<.025+.03*f){creak();cap("rangido de madeira")}
+ if(r()<.015+.025*f){knock();cap("batidas")}
+ if(r()<.012+.02*f){steps();cap("passos")}
+ if(r()<.012+.03*f){chain();cap("correntes")}
+ if(r()<.02+.04*f){breath();cap("respiração")}
  if(r()<.02+.05*f){noise(2.2,.1,"bandpass",300,4000,3,r()*2-1)}
  if(r()<.03*f)tone("sawtooth",50+rnd(60),20,1.6,.18,0,.4);
 }
 function sfx(n){
  if(!au()||ST.vol===0)return;
  if(n==="click")tone("square",1300,700,.05,.05,0);
+ if(n==="boom"){tone("sine",80,22,1.1,.85,0,.004);noise(.7,.4,"lowpass",900,60,1,0)}
+ if(n==="slam"){tone("sine",110,28,.28,.9,0,.002);noise(.3,.35,"lowpass",2500,150,1,0)}
+ if(n==="growl")growl(.55,.8);
+ if(n==="roar"){growl(.95,1.2);scream(.35,1,false)}
+ if(n==="laugh")laugh();
+ if(n==="chime"){tone("sine",1400,1380,1.4,.12,.3,.005);tone("sine",2100,2090,1,.06,-.3,.005)}
+ if(n==="pages"){[0,120,250].forEach(d=>setTimeout(()=>A.ctx&&noise(.12,.15,"bandpass",2500,5000,1,Math.random()*2-1),d))}
+ if(n==="whoosh")noise(.55,.22,"bandpass",300,3500,2,0);
+ if(n==="hurt")scream(.4,.8,true);
+ if(n==="choir")choirS();
  if(n==="holy"){[220,277,330,440].forEach((f,i)=>tone("triangle",f,f*1.004,1.6,.07,(i-1.5)/3,.2))}
  if(n==="hit"){tone("sine",120,30,.3,.5,0,.005);noise(.25,.25,"lowpass",2000,200,1,0)}
  if(n==="fire"){noise(.7,.18,"highpass",3000,9000,1,0)}
@@ -358,7 +390,7 @@ function objDraw(o,found,ci){
 }
 function drawDemon(k,cx,cy,hr,col){
  const sw=Math.sin(T*1.7)*2,pul=Math.sin(T*5);
- {const g=x.createRadialGradient(cx,cy+30,2,cx,cy+30,44);g.addColorStop(0,col+"55");g.addColorStop(1,col+"00");x.globalAlpha=.4+.6*hr;x.fillStyle=g;x.fillRect(cx-50,cy-16,100,100);x.globalAlpha=1}
+ {const g=x.createRadialGradient(cx,cy+30,2,cx,cy+30,44);g.addColorStop(0,col+"55");g.addColorStop(1,col+"00");x.save();x.globalAlpha=x.globalAlpha*(.4+.6*hr);x.fillStyle=g;x.fillRect(cx-50,cy-16,100,100);x.restore()}
  if(k==="sus"){for(let r=0;r<48;r++){const w=6+Math.floor(r*.75);Rc(cx-w/2+sw*(r/48),cy+r,w,1,"#04050b");Rc(cx-w/2+sw*(r/48),cy+r,1,1,"#4a6fc0");Rc(cx+w/2+sw*(r/48),cy+r,1,1,"#4a6fc0")}
   const b=Math.sin(T*2)>.95?0:1;if(b){Rc(cx-6+sw*.3,cy+14,3,2,"#cfe0ff");Rc(cx+3+sw*.3,cy+14,3,2,"#cfe0ff")}
   const sd=Math.floor(T*4);for(let i=0;i<7;i++){const mx=cx-12+((sd*13+i*17)%25),my=cy+22+((sd*7+i*11)%24);Rc(mx,my,3,1,"#7aa6ff")}}
@@ -377,17 +409,27 @@ function drawDemon(k,cx,cy,hr,col){
   for(let i=0;i<14;i++){const a=i*3.7+T*.3,px=cx+Math.cos(a)*24,py=cy+26+Math.sin(a*1.7)*20,bl=Math.sin(T*2+i)>.9?0:1;if(bl){Rc(px-2,py,2,2,"#ff4057");Rc(px+2,py,2,2,"#ff4057")}}
   Rc(cx-8,cy+22,16,2,"#ff4057")}
 }
+let CIN=null;
 function drawRite(r){
  bg(r.ci);const d=DEM[r.k];
  const ox=shake>0?(Math.random()-.5)*5:0;x.save();x.translate(ox,0);
- drawDemon(r.k,80,10,r.hp/r.max,d.c);
- const lv=r.po>60?(r.po-60)/5:0,hc=mix("#c9b79a","#8a1c2b",r.po/100);
- Rc(14,94-lv,16,4,hc);disc(12,92-lv,3,hc);
- padre(134,98,flash>0);
+ const win=CIN&&CIN.kind==="win",poss=CIN&&CIN.kind==="poss";
+ if(win){x.globalAlpha=Math.max(0,1-CIN.k*1.25)}
+ drawDemon(r.k,80+(win?(Math.random()-.5)*4:0),10,r.hp/r.max,d.c);x.globalAlpha=1;
+ const lv=r.po>60?(r.po-60)/5:0,hc=win?"#c9b79a":mix("#c9b79a","#8a1c2b",r.po/100);
+ if(poss){const hx=14+Math.min(1,CIN.k*1.6)*100;Rc(hx-3,84,7,13,"#cfc6b0");disc(hx,81,3,"#c9b79a");Rc(hx+3,87,9,2,"#cfc6b0");Rc(hx+3,91,9,2,"#cfc6b0");Rc(hx-2,80,2,1,"#fff");Rc(hx+1,80,2,1,"#fff")}
+ else{Rc(14,94-lv,16,4,hc);disc(12,92-lv,3,hc)}
+ if(poss&&CIN.k>.55){Rc(108,96,18,5,"#07070b");Rc(125,95,4,4,"#c9b79a")}else padre(134,98,flash>0);
  x.restore();
  if(flash>0){x.globalAlpha=Math.min(.5,flash);Rc(0,0,160,120,"#fff");x.globalAlpha=1}
  const lowf=r.fe/r.feMax;
  if(lowf<.4){x.globalAlpha=(.4-lowf);Rc(0,0,160,120,"#6a0a18");x.globalAlpha=1}
+ if(CIN){
+  if(poss){if(Math.sin(CIN.t*38)>0){x.globalAlpha=.4;Rc(0,0,160,120,"#b00010");x.globalAlpha=1}if(CIN.k>.8){x.globalAlpha=(CIN.k-.8)*5;Rc(0,0,160,120,"#000");x.globalAlpha=1}}
+  if(CIN.kind==="fe"){if(CIN.k>.3){const n=Math.min(4,Math.floor((CIN.k-.3)*9));x.globalAlpha=.9;for(let i=0;i<n;i++){for(let s=0;s<70;s++)Rc(30+i*22+s*.35,8+s*1.4,3,2,"#c0102a")}x.globalAlpha=1}
+  x.globalAlpha=Math.min(.95,CIN.k*1.1);Rc(0,0,160,120,"#000");x.globalAlpha=1;if(CIN.k>.35){const s=Math.min(1,(CIN.k-.35)*2);Rc(58,52,14*s,6*s,"#ff2a40");Rc(88,52,14*s,6*s,"#ff2a40")}}
+  if(win){x.globalAlpha=Math.max(0,.85-CIN.k*2.6);Rc(0,0,160,120,"#fff");x.globalAlpha=1}
+ }
 }
 function drawScare(){
  x.fillStyle="#000";x.fillRect(0,0,160,120);const j=(Math.random()-.5)*6;
@@ -413,7 +455,7 @@ cv.addEventListener("pointerdown",e=>{const p=ptr(e);if(G.mode==="explore"){mous
 function frame(ts){
  const dt=Math.min(.05,(ts-(frame.l||ts))/1000);frame.l=ts;T+=dt;
  mouse.x+=(mouse.tx-mouse.x)*Math.min(1,dt*8);mouse.y+=(mouse.ty-mouse.y)*Math.min(1,dt*8);
- if(flash>0)flash-=dt;if(shake>0)shake-=dt;
+ if(flash>0)flash-=dt;if(shake>0)shake-=dt;if(CIN){CIN.t+=dt;CIN.k=Math.min(1,CIN.t/CIN.dur);if(CIN.kind!=="win")shake=.3}
  let F=.25;
  if(G.mode==="rite"&&G.rite){const r=G.rite;F=.45+r.po/100*.4+(1-r.fe/r.feMax)*.25;
   A.beat=(r.fe/r.feMax<.4||r.po>70)?70+(1-r.fe/r.feMax)*60:0}
@@ -513,17 +555,18 @@ function startRite(){
  G.rite=newRite(S.ch,G.pick===CASES[S.ch].id,S.mercy,feMax());G.rite.warned=false;
  riteUI(`O ar fica pesado. <b>${DEM[G.pick].n}</b> ${G.pick===CASES[S.ch].id?"reconhece o seu olhar.":"ri: o nome estava errado."}`);
 }
-const bar=(l,v,m,c)=>`<div class="bar"><span>${l}</span><i><b style="width:${clamp(v/m)*100}%;background:${c}"></b></i><em>${Math.round(v)}/${m}</em></div>`;
+const bar=(l,v,m,c)=>{const dg=l==="Possessão"?v>=75:(l==="Fé"||l==="Vontade")&&v/m<=.25;return`<div class="bar"><span class="${dg?"gl":""}" style="${dg?"color:#ff5a6a":""}">${dg?"⚠ ":""}${l}</span><i><b style="width:${clamp(v/m)*100}%;background:${c}"></b></i><em>${Math.round(v)}/${m}</em></div>`};
 function riteUI(log){
  const r=G.rite,d=DEM[r.k];
  const shown=r.hid?"…a voz embaralha as intenções dele…":LBL[r.lie||r.intent]+(r.lie?" (?)":"");
  const b=(a,l,s)=>`<button class="b ${a==="fim"?"":"g"}" ${can(r,a)?"":"disabled"} onclick="act('${a}')">${l}<br><small style="font-weight:400">${s}</small></button>`;
  ui.innerHTML=steps(4)+`<h2>${CASES[r.ci].t.split("·")[1]} · ${d.n}</h2>
  ${bar("Fé",r.fe,r.feMax,"#e0b252")}${bar("Vontade",r.vo,r.voMax,"#5d8be0")}${bar("Domínio",r.hp,r.max,"#c0243c")}${bar("Possessão",r.po,100,"#8a3ad0")}
+ <div class="sub" style="font-size:11px;margin:2px 0 0">Zere o <b>Domínio</b> para exorcizar. Você perde se a <b>Possessão</b> chegar a 100% (o demônio vence) ou se a <b>Fé</b> ou a <b>Vontade</b> chegarem a 0.</div>
  <div class="int ${r.fe/r.feMax<.35?"gl":""}">${shown}</div>
  <div class="log">${log||""}</div>
- <div class="row"><div style="flex:1">${b("orar","🙏 Orar","+Fé, escudo")}${b("cruz","✝ Crucifixo","atordoa · −1 Vont")}</div><div style="flex:1">${b("agua","💧 Água benta","dano · "+r.water+" restantes")}${b("rit","📖 Rituale","dano crescente · −2 Vont")}</div></div>
- <button class="b" ${can(r,"fim")?"":"disabled"} onclick="act('fim')">☩ RITO FINAL <small style="font-weight:400">${!r.ok?"(nome errado: bloqueado)":r.hp>r.max*.5?"(enfraqueça-o abaixo de 50%)":"−4 Vont"}</small></button>`;
+ <div class="row"><div style="flex:1">${b("orar","🙏 Orar","+Fé, escudo")}${b("cruz","✝ Crucifixo","atordoa · −1 Vont (mín. 2)")}</div><div style="flex:1">${b("agua","💧 Água benta","dano · "+r.water+" restantes")}${b("rit","📖 Rituale","dano crescente · −2 Vont (mín. 3)")}</div></div>
+ <button class="b" ${can(r,"fim")?"":"disabled"} onclick="act('fim')">☩ RITO FINAL <small style="font-weight:400">${!r.ok?"(nome errado: bloqueado)":r.hp>r.max*.5?"(enfraqueça-o abaixo de 50%)":r.vo<5?"(precisa de 5 Vontade)":"−4 Vont"}</small></button>`;
 }
 const DMG={agua:1,rit:1,fim:1};
 function act(a){
@@ -535,29 +578,65 @@ function act(a){
 function resolve(a,m,acc){
  const r=G.rite;
  const t1=playerAct(r,a,m)+(acc!=null?` Precisão da cruz: ${acc}%.`:"");
- if(a==="orar")sfx("holy");else if(a==="agua")sfx("fire");else sfx("hit");
- flash=.35;vib(40);
+ playerSfx(a);flash=.35;vib(a==="fim"?[80,40,180]:40);
  if(r.over==="win")return endRite(t1);
+ const used=r.intent,stunned=r.stun;
  const t2=enemyAct(r);
- if(r.intent==="fur"||/pesad|FÚRIA|atinge/.test(t2)){shake=.4}
+ if(!stunned)enemySfx(used);
+ if(used==="fur"&&!stunned){shake=.5;vib([150,50,150])}
  if(/Fé\)/.test(t2)){sfx("hit");vib(80);shake=.3}
  if(r.over==="lose")return endRite(t1+" "+t2);
  if(!r.warned&&r.fe/r.feMax<.3){r.warned=true;if(!ST.calm)scare();cap("batimentos")}
  riteUI(t1+"<br>"+t2);
 }
+function playerSfx(a){
+ if(a==="orar"){sfx("holy");sfx("chime")}
+ if(a==="agua"){sfx("fire");sfx("hurt")}
+ if(a==="cruz"){sfx("chime");sfx("boom")}
+ if(a==="rit"){sfx("pages");sfx("choir")}
+ if(a==="fim"){sfx("boom");sfx("choir");sfx("whoosh");setTimeout(()=>A.ctx&&scream(.6,1,false),150)}
+}
+function enemySfx(k){
+ if(!au()||ST.vol===0)return;
+ if(k==="bla"){sfx("growl");cap("rosnado")}
+ if(k==="pos"){sfx("laugh");noise(1.2,.12,"bandpass",1500,3000,8,0,7);cap("risada")}
+ if(k==="fur"){sfx("roar");sfx("boom");cap("rugido")}
+}
+function cinematic(kind,msg,seq,vp,dur,done){
+ CIN={kind,t:0,k:0,dur};const app=$("#app");
+ if(kind!=="win")app.classList.add("shake2");
+ ui.innerHTML=`<div class="box" style="text-align:center;margin-top:20px"><h2 class="gl" style="font-size:20px">${msg.t}</h2><p>${msg.x}</p></div>`;
+ if(vp)vib(vp);
+ seq.forEach(([t,f])=>setTimeout(()=>{if(au())f()},t));
+ setTimeout(()=>{CIN=null;app.classList.remove("shake2");done()},dur);
+}
 function endRite(last){
  const r=G.rite;G.mode="rite";
  if(r.over==="win"){
-  const saved=r.po<70;if(saved)S.saved++;S.def.push(r.k);save();sfx("win");
-  const c=CASES[S.ch],end=S.ch===4;
-  ui.innerHTML=`<h2>O nome foi dito. ${DEM[r.k].n} se desfaz.</h2><div class="box"><p>${last}</p><p>${saved?`<b>${c.host.split(",")[0]} foi salvo(a).</b> A gratidão fortalece sua fé (+2 Fé máx).`:`<b>${c.host.split(",")[0]} sobrevive, mas marcado(a).</b> A possessão foi longe demais.`}</p></div>
-  <div class="box pap"><h2>Página do diário recuperada</h2><p><i>${c.page}</i></p></div>
-  <button class="b" onclick="${end?"ending()":"nextCase()"}">${end?"O AMANHECER":"SEGUIR PARA O PRÓXIMO CASO"}</button>`;
+  const saved=r.po<70;if(saved)S.saved++;S.def.push(r.k);save();
+  cinematic("win",{t:"EXORCISMO COMPLETO",x:`O Domínio de ${DEM[r.k].n} chegou a 0%. Ele grita com a própria voz e se desfaz em cinzas.`},
+   [[0,()=>{sfx("boom");sfx("hurt")}],[500,()=>sfx("choir")],[1000,()=>scream(.45,1.2,false)],[1400,()=>sfx("chime")],[2000,()=>sfx("win")]],
+   [100,60,100,60,300],2800,()=>showWin(last,saved));
  }else{
-  sfx("lose");const why=r.fe<=0?"Sua Fé se apagou.":"O hospedeiro foi tomado por completo.";
-  ui.innerHTML=`<h2 class="gl">O exorcismo falhou.</h2><div class="box"><p>${last}</p><p><b>${why}</b></p></div>
-  <button class="b" onclick="retry()">TENTAR O RITO DE NOVO</button><button class="b g" onclick="G.mode='explore';diary()">REVISAR O DIÁRIO E O NOME</button>`;
+  const poss=r.why==="po";
+  if(poss)cinematic("poss",{t:"O DEMÔNIO VENCEU",x:`O corpo de ${CASES[r.ci].host.split(",")[0]} se vira para você… e ataca!`},
+   [[0,()=>{sfx("boom");sfx("roar")}],[350,()=>scream(.85,1.4,false)],[800,()=>sfx("slam")],[1100,()=>{sfx("laugh");sfx("hit")}],[1500,()=>{scream(.9,1.6,false);sfx("boom")}],[1900,()=>{sfx("slam");chain()}],[2300,()=>{sfx("chime");sfx("whoosh")}],[2700,()=>sfx("lose")]],
+   [300,100,300,100,600,100,900],3300,()=>showLose(last,"po"));
+  else cinematic("fe",r.why==="vo"?{t:"SUA VONTADE SE ESGOTA",x:"Os joelhos cedem. O demônio avança e te ataca sem que você consiga rezar."}:{t:"SUA FÉ SE APAGA",x:"As velas morrem uma a uma. Algo ri na escuridão… e te ataca."},
+   [[0,()=>sfx("whoosh")],[400,()=>sfx("laugh")],[800,()=>{sfx("roar");sfx("whoosh")}],[1100,()=>sfx("slam")],[1400,()=>{sfx("hit");scream(.8,1.4,false)}],[1700,()=>sfx("slam")],[2100,()=>sfx("lose")]],
+   [200,100,300,100,500,100,700],2800,()=>showLose(last,r.why));
  }
+}
+function showWin(last,saved){
+ const r=G.rite,c=CASES[S.ch],end=S.ch===4,left=5-S.def.length;
+ ui.innerHTML=steps(4)+`<h2>${DEM[r.k].n} foi exorcizado!</h2><div class="box"><p>${last}</p><p>${saved?`<b>${c.host.split(",")[0]} foi salvo(a).</b> A gratidão fortalece sua fé (+2 Fé máx).`:`<b>${c.host.split(",")[0]} sobrevive, mas marcado(a).</b> A possessão foi longe demais.`}</p>${left?`<p>Faltam <b>${left}</b> demônio${left>1?"s":""} na vila.</p>`:""}</div>
+ <div class="box pap"><h2>Página do diário recuperada</h2><p><i>${c.page}</i></p></div>
+ <button class="b" onclick="${end?"ending()":"nextCase()"}">${end?"O AMANHECER":"EXORCIZAR O PRÓXIMO DEMÔNIO"}</button>`;
+}
+function showLose(last,poss){
+ const r=G.rite,why=poss==="po"?"A Possessão chegou a 100%: o demônio venceu, tomou o hospedeiro e te atacou.":poss==="vo"?"Sua Vontade chegou a 0: sem forças, o demônio te atacou e o rito acabou.":"Sua Fé chegou a 0: sem fé, o demônio te atacou e o rito se desfez.";
+ ui.innerHTML=`<h2 class="gl">O exorcismo falhou.</h2><div class="box"><p>${last}</p><p><b>${why}</b></p></div>
+ <button class="b" onclick="retry()">TENTAR O RITO DE NOVO</button><button class="b g" onclick="G.mode='explore';diary()">REVISAR O DIÁRIO E O NOME</button>`;
 }
 function retry(){startRite()}
 function nextCase(){S.ch++;save();startCase()}
