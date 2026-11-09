@@ -556,7 +556,13 @@ function openOpts(){
  const t=(k,l)=>`<label>${l}<input type="checkbox" ${ST[k]?"checked":""} onchange="ST['${k}']=this.checked;optApply()"></label>`;
  o.innerHTML=`<h2>Opções</h2><label>Volume<input type="range" min="0" max="1" step=".05" value="${ST.vol}" oninput="ST.vol=+this.value;vol();optApply(1)"></label>
  ${t("vib","Vibração")}${t("subs","Legendas de efeitos sonoros")}${t("calm","Reduzir sustos (sem flashes e jumpscares)")}${t("btn","Cruz por botão (sem gesto)")}${t("cb","Modo daltônico")}
+ <button class="b g" onclick="testSound()">🔊 TESTAR SOM</button><p class="sub" id="snd" style="margin-top:6px"></p>
  <p class="sub" style="margin-top:10px">Idioma: Português (BR)</p><button class="b" onclick="$('#opt').style.display='none'">VOLTAR</button>`;
+}
+function testSound(){
+ const c=au();sfx("holy");setTimeout(()=>sfx("hit"),700);
+ const e=$("#snd");if(!e)return;
+ setTimeout(()=>{e.textContent=!c?"Este navegador não suporta áudio Web.":("Estado do áudio: "+A.ctx.state+(A.ctx.state==="running"?" (se não ouviu nada: desligue o modo silencioso e suba o volume)":" (toque no botão de novo)"))},300);
 }
 function optApply(q){document.body.classList.toggle("cb",ST.cb);if(!q)save()}
 optApply(1);
