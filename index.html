@@ -404,6 +404,12 @@ function drawTitle(){
  [[10,86,22],[30,92,16],[130,84,24],[148,90,14]].forEach(([a,b,h])=>{Rc(a,b-h,3,h,"#07080f");Rc(a-5,b-h+5,13,3,"#07080f")});
  x.globalAlpha=.09;for(let i=0;i<4;i++)Rc(((T*(5+i*3)+i*60)%220)-60,70+i*8,100,8,"#aab4d4");x.globalAlpha=1;
 }
+function drawHost(ci,rev){const hx=HX[ci],y=96-(rev?3+Math.sin(T*2)*1.5:0);
+ Rc(hx-6,y-4,14,4,"#b9b09a");Rc(hx+8,y-3,4,2,"#9a8f78");disc(hx-8,y-5,3,"#c9b79a");Rc(hx-11,y-8,5,2,"#1a1410");
+ if(rev){Rc(hx-9,y-6,2,1,"#fff");Rc(hx-6,y-6,2,1,"#fff")}}
+function ptr(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*160,y:(e.clientY-r.top)/r.height*120}}
+cv.addEventListener("pointermove",e=>{if(G.mode==="explore"||G.mode==="diary"){const p=ptr(e);mouse.tx=p.x;mouse.ty=p.y}});
+cv.addEventListener("pointerdown",e=>{const p=ptr(e);if(G.mode==="explore"){mouse.tx=p.x;mouse.ty=p.y;au();CASES[S.ch].objs.forEach((o,i)=>{if(Math.abs(p.x-o.x)<12&&p.y>60&&p.y<102)examine(i)})}});
 function frame(ts){
  const dt=Math.min(.05,(ts-(frame.l||ts))/1000);frame.l=ts;T+=dt;
  mouse.x+=(mouse.tx-mouse.x)*Math.min(1,dt*8);mouse.y+=(mouse.ty-mouse.y)*Math.min(1,dt*8);
@@ -411,19 +417,21 @@ function frame(ts){
  let F=.25;
  if(G.mode==="rite"&&G.rite){const r=G.rite;F=.45+r.po/100*.4+(1-r.fe/r.feMax)*.25;
   A.beat=(r.fe/r.feMax<.4||r.po>70)?70+(1-r.fe/r.feMax)*60:0}
- else if(G.mode==="explore"){F=.3+Object.keys(G.found).length*.08;A.beat=0}
+ else if(G.mode==="explore"){const hx=HX[S.ch],d=Math.hypot(mouse.x-hx,mouse.y-88),pr=G.stage==="procurar";F=.3+nFound()*.08+(pr?.25:0)+(pr&&d<45?.2:0);A.beat=(pr&&d<45)?90:0;
+  if(pr&&!G.lock){if(d<18)G.hostT+=dt;else G.hostT=Math.max(0,G.hostT-dt);if(G.hostT>.6)findHost()}}
  else A.beat=0;
  A.fear=clamp(F);document.documentElement.style.setProperty("--f",A.fear.toFixed(2));
  if(SC){SC.t-=dt;drawScare();if(SC.t<=0)SC=null}
  else if(G.mode==="rite"&&G.rite)drawRite(G.rite);
  else if(G.mode==="explore"||G.mode==="diary"){
-  const ci=S.ch;bg(ci);CASES[ci].objs.forEach(o=>objDraw(o,G.found[o.n],ci));padre(10,98,false);
+  const ci=S.ch;bg(ci);CASES[ci].objs.forEach(o=>objDraw(o,G.found[o.n],ci));if(G.stage==="procurar"||G.stage==="achado")drawHost(ci,G.stage==="achado");padre(10,98,false);
   const fl=1+Math.sin(T*13)*.04+Math.sin(T*31)*.03,rad=(G.mode==="diary"?34:44)*fl;
   spawnEyes(A.fear);
   const g=x.createRadialGradient(mouse.x,mouse.y,4,mouse.x,mouse.y,rad);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(.55,"rgba(0,0,0,.55)");g.addColorStop(1,"rgba(0,0,0,.95)");
   x.fillStyle=g;x.fillRect(0,0,160,120);
   x.globalAlpha=.12;disc(mouse.x,mouse.y,Math.round(rad*.5),"#ffb050");x.globalAlpha=1;
   drawEyes(mouse.x,mouse.y,true);
+  if(G.stage==="procurar"&&Math.sin(T*2.3)>-.3){x.globalAlpha=.45;Rc(HX[ci]-9,90,2,1,"#ff2a40");Rc(HX[ci]-6,90,2,1,"#ff2a40");x.globalAlpha=1}
  }else{drawTitle();spawnEyes(.5);drawEyes(0,0,false)}
  if(A.fear>.55&&!ST.calm&&Math.random()<.03){const yy=rnd(110),hh=2+rnd(8),dx=(Math.random()-.5)*10;x.drawImage(cv,0,yy,160,hh,dx,yy,160,hh)}
  requestAnimationFrame(frame);
@@ -434,7 +442,7 @@ function scare(){
  sfx("scare");vib([80,40,120]);cap("grito agudo");SC={t:.28};$("#app").classList.remove("shake");void $("#app").offsetWidth;$("#app").classList.add("shake");
 }
 let scareT=null;
-function armScare(){clearTimeout(scareT);if(ST.calm)return;scareT=setTimeout(()=>{if(G.mode==="explore"){scare();}},16000+rnd(16000))}
+function armScare(){clearTimeout(scareT)}
 
 /* ===== TELAS ===== */
 const ui=$("#ui");
@@ -450,35 +458,47 @@ function newGame(){au();sfx("click");S={ch:0,def:[],saved:0,mercy:0,fx:0};save()
  G.mode="title";ui.innerHTML=`<h2>Prólogo</h2><div class="box"><p>Minas Gerais, 1962. O velho Padre Benedito, exorcista de Santa Clara do Ermo, foi encontrado morto, e ninguém quer explicar como.</p><p>Você, Padre Tomás Aurélio, 28 anos, chega para substituí-lo. Na primeira noite, a sineta da igreja toca sozinha.</p><p>Você não tem arma nenhuma. Só a fé, e ela anda curta.</p></div><button class="b" onclick="startCase()">ENTRAR NA VILA</button>`}
 function cont(){au();const s=load();if(s){S=s;startCase()}}
 function startCase(){
- sfx("click");au();G.found={};G.choices={};G.pick=null;G.rite=null;G.mode="explore";mouse.tx=60;mouse.ty=70;eyes=[];armScare();save();exploreUI();
+ sfx("click");au();G.found={};G.choices={};G.pick=null;G.rite=null;G.hostFound=false;G.hostT=0;G.lock=false;G.stage="sinais";G.mode="explore";mouse.tx=60;mouse.ty=70;eyes=[];armScare();save();exploreUI();
 }
+const HX=[54,104,52,102,54];
+function steps(n){const L=["Sinais","Possuído","Diário","Rito"];return`<div style="display:flex;gap:4px;margin-bottom:8px">${L.map((l,i)=>`<div style="flex:1;text-align:center;font-size:11px;padding:4px 2px;border-radius:4px;border:1px solid ${i+1===n?"#e0b252":"#2a3050"};color:${i+1===n?"#e0b252":i+1<n?"#7a9":"#667"};background:${i+1===n?"rgba(122,18,38,.4)":"transparent"}">${i+1}. ${l}</div>`).join("")}</div>`}
 function nFound(){return Object.keys(G.found).length}
+function stage(){return nFound()<CASES[S.ch].objs.length?"sinais":(!G.hostFound?"procurar":"achado")}
 function exploreUI(msg){
- const c=CASES[S.ch];
- ui.innerHTML=`<h2>${c.t}</h2>
- <div class="box">${msg||`<p>${c.intro}</p><p style="color:#8c91ad;font-size:12px">Arraste o dedo (ou o mouse) sobre a cena para mover a luz da vela. Os pontos dourados são sinais. Toque neles.</p>`}</div>
- <div class="sub">Sinais encontrados: ${nFound()}/${c.objs.length}</div>
- ${c.objs.map((o,i)=>`<button class="b g" onclick="examine(${i})">${G.found[o.n]?"✔ ":""}${o.k==="npc"?"Falar com":"Examinar"}: ${o.n}</button>`).join("")}
- <button class="b" onclick="diary()" ${nFound()<2?"disabled":""}>ABRIR O DIÁRIO ${nFound()<2?"(ache 2 sinais)":""}</button>`;
+ const c=CASES[S.ch],st=stage();G.stage=st;G.mode="explore";
+ let body=msg||"";
+ if(!msg&&st==="sinais")body=`<p>${c.intro}</p><p style="color:#8c91ad;font-size:12px">Arraste o dedo (ou o mouse) sobre a cena para mover a luz da vela. Os pontos dourados são sinais: toque neles ou use os botões.</p>`;
+ if(st==="procurar")body+=`<p style="color:#ff9aa8"><i>Todos os sinais anotados. Um gemido baixo vem da escuridão… O possuído está por perto. Mova a luz pela cena até encontrá-lo.</i></p>`;
+ if(!msg&&st==="achado")body=`<p>Agora você sabe quem sofre. No diário, descubra o nome do demônio.</p>`;
+ ui.innerHTML=steps(st==="sinais"?1:st==="procurar"?2:3)+`<h2>${c.t}</h2><div class="box">${body}</div>`
+ +(st==="sinais"?`<div class="sub">Sinais encontrados: ${nFound()}/${c.objs.length}</div>`+c.objs.map((o,i)=>`<button class="b g" onclick="examine(${i})">${G.found[o.n]?"✔ ":""}${o.k==="npc"?"Falar com":"Examinar"}: ${o.n}</button>`).join(""):"")
+ +(st==="procurar"?`<button class="b g" onclick="hint()">💡 PISTA: DE QUE LADO ELE ESTÁ?</button>`:"")
+ +(st==="achado"?`<button class="b" onclick="diary()">PASSO 3 · ABRIR O DIÁRIO</button>`:"");
 }
 function examine(i){
+ if(G.lock||G.mode!=="explore"||G.stage!=="sinais")return;
  sfx("click");const c=CASES[S.ch],o=c.objs[i];
  G.found[o.n]=true;mouse.tx=o.x;mouse.ty=88;
- if(o.k==="obj"&&Math.random()<.35){const m=Math.random()<.5;cap("algo se move")}
  let h=`<p><b>${o.n}</b></p><p>${o.tx}</p><div class="cl">📖 Sinal anotado: ${o.cl}</div>`;
  if(o.ch&&G.choices[o.n]==null){
+  G.lock=true;
   h+=`<p style="margin-top:8px"><i>${o.ch.q}</i></p>`+o.ch.o.map((q,j)=>`<button class="b g" onclick="choose(${i},${j})">${q.t}</button>`).join("");
-  exploreUI(h);ui.querySelectorAll(".b").forEach(b=>{if(!b.textContent.match(/Abrir|ABRIR/)&&b.onclick&&b.getAttribute("onclick").startsWith("examine"))b.disabled=true});return;
+  ui.innerHTML=steps(1)+`<h2>${c.t}</h2><div class="box">${h}</div>`;return;
  }
  exploreUI(h);
 }
 function choose(i,j){
- const o=CASES[S.ch].objs[i],q=o.ch.o[j];sfx("click");G.choices[o.n]=j;S.mercy+=q.m;save();
+ const o=CASES[S.ch].objs[i],q=o.ch.o[j];sfx("click");G.choices[o.n]=j;S.mercy+=q.m;G.lock=false;save();
  exploreUI(`<p><b>${o.n}</b></p><p>${q.r}</p>`);
+}
+function hint(){sfx("click");exploreUI(`<p>O gemido vem da <b>${HX[S.ch]<80?"esquerda":"direita"}</b> da cena.</p>`)}
+function findHost(){
+ if(G.hostFound||G.lock)return;G.hostFound=true;scare();const c=CASES[S.ch];
+ setTimeout(()=>{mouse.tx=HX[S.ch];mouse.ty=88;exploreUI(`<p><b>${c.host}</b> jaz no chão. Os olhos se abrem de repente, brancos, e uma voz que não é humana sussurra o seu nome.</p>`)},800);
 }
 function diary(){
  sfx("click");G.mode="diary";const c=CASES[S.ch];
- ui.innerHTML=`<div class="box pap"><h2>DIÁRIO DO PADRE TOMÁS</h2><p><b>Hospedeiro:</b> ${c.host}</p>
+ ui.innerHTML=steps(3)+`<div class="box pap"><h2>DIÁRIO DO PADRE TOMÁS</h2><p><b>Hospedeiro:</b> ${c.host}</p>
  ${c.objs.filter(o=>G.found[o.n]).map(o=>`<div class="cl" style="border-color:#6b1020">${o.cl}</div>`).join("")}
  <p style="margin-top:10px"><b>Qual é o verdadeiro nome do demônio?</b> Os já exorcizados não voltam. Errar o nome o deixa mais forte e bloqueia o Rito Final.</p>
  ${Object.keys(DEM).map(k=>{const dead=S.def.includes(k);return`<div class="dem ${dead?"off":""} ${G.pick===k?"on":""}" ${dead?"":`onclick="pick('${k}')"`}><b>${DEM[k].n}${dead?" (exorcizado)":""}</b><small>${DEM[k].d}</small></div>`}).join("")}
@@ -498,7 +518,7 @@ function riteUI(log){
  const r=G.rite,d=DEM[r.k];
  const shown=r.hid?"…a voz embaralha as intenções dele…":LBL[r.lie||r.intent]+(r.lie?" (?)":"");
  const b=(a,l,s)=>`<button class="b ${a==="fim"?"":"g"}" ${can(r,a)?"":"disabled"} onclick="act('${a}')">${l}<br><small style="font-weight:400">${s}</small></button>`;
- ui.innerHTML=`<h2>${CASES[r.ci].t.split("·")[1]} · ${d.n}</h2>
+ ui.innerHTML=steps(4)+`<h2>${CASES[r.ci].t.split("·")[1]} · ${d.n}</h2>
  ${bar("Fé",r.fe,r.feMax,"#e0b252")}${bar("Vontade",r.vo,r.voMax,"#5d8be0")}${bar("Domínio",r.hp,r.max,"#c0243c")}${bar("Possessão",r.po,100,"#8a3ad0")}
  <div class="int ${r.fe/r.feMax<.35?"gl":""}">${shown}</div>
  <div class="log">${log||""}</div>
